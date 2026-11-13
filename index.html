@@ -276,6 +276,47 @@
     }
     .stat-pill span { font-weight: 700; color: #7dd3fc; }
 
+    .login-tutorial {
+      max-width: 860px;
+      margin: 0 auto 28px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 20px;
+      background: rgba(255,255,255,0.06);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.25);
+      animation: fadeIn 0.8s ease-out 0.35s both;
+    }
+    .tutorial-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .tutorial-heading h2 { color: #fff; font-size: 18px; font-weight: 700; }
+    .tutorial-heading p { margin-top: 4px; color: rgba(255,255,255,0.6); font-size: 12px; }
+    .tutorial-duration {
+      flex-shrink: 0;
+      padding: 5px 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 20px;
+      color: #b9dfff;
+      font-size: 11px;
+    }
+    .login-tutorial video {
+      display: block;
+      width: 100%;
+      max-height: 380px;
+      border-radius: 12px;
+      background: #080d17;
+    }
+    .tutorial-skip { display: inline-block; margin-top: 10px; color: #b9dfff; font-size: 12px; text-decoration: none; }
+    .tutorial-skip:hover { color: #fff; text-decoration: underline; }
+    @media (max-width: 700px) {
+      .login-tutorial { padding: 14px; }
+      .tutorial-heading h2 { font-size: 16px; }
+    }
+
     @keyframes fadeInDown {
       from { opacity: 0; transform: translateY(-30px); }
       to { opacity: 1; transform: translateY(0); }
@@ -390,6 +431,21 @@
     </select>
   </div>
 
+  <section class="login-tutorial" aria-labelledby="tutorialTitle">
+    <div class="tutorial-heading">
+      <div>
+        <h2 id="tutorialTitle">Quick demo: how to use WorldWatch</h2>
+        <p>Learn how to explore issues, submit a report, track progress, and route work as an administrator.</p>
+      </div>
+      <span class="tutorial-duration">15-second demo</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="tutorial-poster.jpg" aria-label="WorldWatch application tutorial video">
+      <source src="tutorial.mp4" type="video/mp4">
+      Your browser does not support MP4 video. Please use the controls to continue to login.
+    </video>
+    <a class="tutorial-skip" href="#loginCards">Skip demo and go to login</a>
+  </section>
+
   <!-- Live Stats Banner -->
   <div class="stats-banner">
     <div class="stat-pill">🗺️ Issues Tracked: <span id="statTotal">15</span></div>
@@ -399,7 +455,7 @@
   </div>
 
   <!-- Login Cards -->
-  <div class="login-cards">
+  <div class="login-cards" id="loginCards">
     <!-- User Login -->
     <form class="login-card" id="userLoginForm" novalidate onsubmit="return doLogin(event, 'user')">
       <div class="card-icon user"><i class="fa fa-user"></i></div>

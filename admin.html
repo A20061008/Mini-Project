@@ -31,6 +31,9 @@
         <i class="fa fa-clipboard-check"></i> <span data-i18n="issueManagement">Issue Management</span>
         <span class="nav-badge" id="pendingBadge">0</span>
       </a>
+      <a class="nav-item" data-tab="departments" href="#" onclick="switchTab('departments');return false">
+        <i class="fa fa-building"></i> <span data-i18n="departments">Departments</span>
+      </a>
       <a class="nav-item" data-tab="analytics" href="#" onclick="switchTab('analytics');return false">
         <i class="fa fa-chart-bar"></i> <span data-i18n="analytics">Analytics</span>
       </a>
@@ -97,12 +100,23 @@
           <datalist id="departmentOptions"></datalist>
           <table>
             <thead><tr>
-              <th></th><th data-i18n="title">Title</th><th data-i18n="type">Type</th><th data-i18n="location">Location</th>
-              <th>Assigned Department</th><th data-i18n="reports">Reports</th><th data-i18n="severity">Severity</th><th data-i18n="status">Status</th><th data-i18n="actions">Actions</th>
+              <th>Preview</th><th data-i18n="title">Title</th><th data-i18n="type">Type</th><th data-i18n="location">Location</th>
+              <th data-i18n="departments">Department</th><th data-i18n="reports">Reports</th><th data-i18n="severity">Severity</th><th data-i18n="status">Status</th><th data-i18n="actions">Actions</th>
             </tr></thead>
             <tbody id="issueBody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- TAB: DEPARTMENTS -->
+      <div class="tab-content" id="tab-departments">
+        <div class="section-heading"><i class="fa fa-building"></i> Department task queue</div>
+        <p class="department-intro">Issues are grouped by their suggested department using issue type and area. These are routing suggestions; administrators should confirm the correct local agency.</p>
+        <div class="department-toolbar">
+          <button class="btn btn-primary" type="button" onclick="autoAssignUnassignedDepartments()"><i class="fa fa-wand-magic-sparkles"></i> Assign suggestions to unassigned issues</button>
+          <span id="departmentIssueCount"></span>
+        </div>
+        <div class="department-grid" id="departmentGrid"></div>
       </div>
 
       <!-- TAB: ANALYTICS -->
@@ -155,11 +169,13 @@
 </div>
 
 <div id="toastContainer" class="toast-container"></div>
+<div class="ww-chat" id="wwChat"><button class="ww-chat-toggle" type="button" onclick="toggleChat()" aria-label="Open WorldWatch AI assistant">💬 <span>AI Assistant</span></button><section class="ww-chat-panel" id="wwChatPanel" aria-label="WorldWatch AI assistant" hidden><header><strong>WorldWatch AI Assistant</strong><button type="button" onclick="toggleChat()" aria-label="Close">×</button></header><div class="ww-chat-messages" id="wwChatMessages" aria-live="polite"><div class="ww-chat-bubble">Hi! Ask me anything, ask about an issue ID or title, or ask me to draft an issue report.</div></div><form class="ww-chat-form" onsubmit="sendChat(event)"><input id="wwChatInput" aria-label="Ask a question" placeholder="Ask me anything…" maxlength="4000"><button type="submit">Send</button></form><small>AI answers may be inaccurate and are not live forecasts. Civic guidance is preliminary; emergencies in India: call 112. Reports are not sent automatically. Matching issue details may be sent to the configured AI provider. Generated reports remain drafts until you review and submit them.</small></section></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
 <script src="translations.js"></script>
 <script src="app.js"></script>
+<script src="assistant.js"></script>
 <script>
 // ---------- Auth ----------
 const session = AUTH.requireAuth('admin');
@@ -168,8 +184,8 @@ if (session) {
   document.getElementById('sidebarUserEmail').textContent = session.email;
 }
 const TYPE_ORDER = ['naturalDisaster','flood','fire','roadAccident','crime','infrastructure','pollution','medical','other'];
-const ADMIN_DEPARTMENTS = ['Kerala Police','State Police','India Meteorological Department (IMD)','State Disaster Management Authority','Fire and Emergency Services','Traffic Police','Public Works Department / Municipal Authority','State Pollution Control Board','Health Department / Emergency Medical Services','Other / Manual assignment'];
-const TITLES = { overview:'overview', manage:'issueManagement', analytics:'analytics' };
+const ADMIN_DEPARTMENTS = ['State Police','Fire and Emergency Services','Traffic Police','Public Works Department / Municipal Authority','State Pollution Control Board','Health Department / Emergency Medical Services','State Disaster Management Authority','India Meteorological Department (IMD)','District Administration / Manual assignment'];
+const TITLES = { overview:'overview', manage:'issueManagement', departments:'departments', analytics:'analytics' };
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -181,15 +197,71 @@ function switchTab(tab) {
   document.getElementById('sidebar').classList.remove('open');
   if (tab === 'overview') MapView.refresh();
   if (tab === 'manage') renderTable();
+  if (tab === 'departments') renderDepartments();
   if (tab === 'analytics') Analytics.init();
 }
 
 // ---------- Verification actions (visible to users instantly on their map) ----------
 function assignDepartment(id, value) { if (DATA.setDepartment(id, value) === null) { Toast.show('Could not update department assignment.', 'error'); return; } Toast.show('Department assignment updated.', 'success'); }
+function buildDepartmentOptions() {
+  const options = new Set(ADMIN_DEPARTMENTS);
+  DATA.getAll().forEach(issue => {
+    if (issue.department) options.add(issue.department);
+    options.add(DepartmentRouting.suggest(issue.type, issue.location, issue.title, issue.description));
+  });
+  document.getElementById('departmentOptions').innerHTML = [...options]
+    .map(department => `<option value="${Util.esc(department)}">`).join('');
+}
+function autoAssignUnassignedDepartments() {
+  const count = DATA.autoAssignUnassignedDepartments();
+  if (count === null) {
+    Toast.show('Could not save the department assignments.', 'error');
+    return;
+  }
+  Toast.show(count ? `${count} issues assigned to suggested departments.` : 'All issues already have a department.', count ? 'success' : 'info');
+  renderDepartments();
+}
 function setStatus(id, status) {
   if (!DATA.setStatus(id, status)) return;
   Toast.show(i18n.t(status === 'verified' ? 'successVerify' : 'successFake'), status === 'verified' ? 'success' : 'warning');
   if (window.MapView && MapView.map) MapView.closePopup();
+}
+
+function renderDepartments() {
+  const issues = DATA.getAll();
+  const groups = new Map();
+  issues.forEach(issue => {
+    const department = String(issue.department || '').trim() || 'Unassigned';
+    if (!groups.has(department)) groups.set(department, []);
+    groups.get(department).push(issue);
+  });
+  const grid = document.getElementById('departmentGrid');
+  document.getElementById('departmentIssueCount').textContent = `${issues.length} issues across ${groups.size} departments`;
+  if (!groups.size) {
+    grid.innerHTML = '<div class="empty-note">No issues are currently assigned.</div>';
+    return;
+  }
+  grid.innerHTML = [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([department, tasks]) => `
+      <section class="department-card">
+        <header><h3>${Util.esc(department)}</h3><span>${tasks.length} ${tasks.length === 1 ? 'issue' : 'issues'}</span></header>
+        <ul>${tasks.slice().sort((a, b) => b.severity - a.severity).map(issue => `
+          <li>
+            <div class="department-task-title">${Util.esc(issue.title)}</div>
+            <div class="department-task-meta">${Util.esc(issue.id)} · ${Util.esc(i18n.t(issue.type))} · ${Util.esc(issue.location)}</div>
+            <div class="department-task-footer">${Util.statusBadge(issue.status)}<button class="btn btn-sm btn-outline" type="button" data-department-issue="${Util.esc(issue.id)}">Review issue</button></div>
+          </li>`).join('')}</ul>
+      </section>`)
+    .join('');
+  grid.querySelectorAll('[data-department-issue]').forEach(button => {
+    button.addEventListener('click', () => {
+      switchTab('manage');
+      const search = document.getElementById('searchBox');
+      search.value = button.dataset.departmentIssue;
+      renderTable();
+    });
+  });
 }
 
 // ---------- Overview ----------
@@ -238,7 +310,7 @@ function renderTable() {
   if (!list.length) { tb.innerHTML = `<tr><td colspan="9" class="empty-note">${Util.esc(i18n.t('noIssues'))}</td></tr>`; return; }
   tb.innerHTML = list.map(i => `
     <tr>
-      <td>${i.image ? `<img class="td-thumb" src="${Util.esc(i.image)}" alt="">` : `<div class="td-thumb" style="display:flex;align-items:center;justify-content:center;font-size:22px">${MapUtils.getTypeIcon(i.type)}</div>`}</td>
+      <td>${IssuePreview.html(i,'admin-issue-preview')}</td>
       <td><div style="font-weight:600;font-size:14px;max-width:260px">${Util.esc(i.title)}</div><div style="font-size:11px;color:#999">${Util.esc(i.id)} · ${Util.esc(i.reporter)} · ${Util.esc(i.date)}</div></td>
       <td style="font-size:12px">${MapUtils.getTypeIcon(i.type)} ${Util.esc(i18n.t(i.type))}</td>
       <td style="font-size:12px;color:#666">📍 ${Util.esc(i.location)}</td>
@@ -291,10 +363,10 @@ MapView.init('map', {
     (i.status === 'reviewing' || i.status === 'verified'
       ? `<button class="btn btn-sm btn-danger" onclick="setStatus('${i.id}','fake')">❌ ${Util.esc(i18n.t('markFake'))}</button>` : '')
 });
-document.getElementById('departmentOptions').innerHTML = ADMIN_DEPARTMENTS.map(d => `<option value="${Util.esc(d)}">`).join('');
-renderStats(); buildMapFilters(); buildStatusFilters(); renderTable();
-DATA.subscribe(() => { renderStats(); renderTable(); });
-window.addEventListener('ww:lang', () => { renderStats(); buildMapFilters(); buildStatusFilters(); renderTable(); });
+buildDepartmentOptions();
+renderStats(); buildMapFilters(); buildStatusFilters(); renderTable(); renderDepartments();
+DATA.subscribe(() => { buildDepartmentOptions(); renderStats(); renderTable(); renderDepartments(); });
+window.addEventListener('ww:lang', () => { renderStats(); buildMapFilters(); buildStatusFilters(); renderTable(); renderDepartments(); });
 </script>
 </body>
 </html>

@@ -220,6 +220,7 @@
 <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
 <script src="translations.js"></script>
 <script src="app.js"></script>
+<script src="assistant.js"></script>
 <script>
 // ---------- Auth ----------
 const session = AUTH.requireAuth('user');
@@ -268,14 +269,23 @@ function buildTypeOptions() {
   sel.value = cur; buildDepartmentOptions();
 }
 let departmentTouched=false;
-const DEPARTMENTS = ['Kerala Police','State Police','India Meteorological Department (IMD)','State Disaster Management Authority','Fire and Emergency Services','Traffic Police','Public Works Department / Municipal Authority','State Pollution Control Board','Health Department / Emergency Medical Services','Other / Manual assignment'];
-function suggestedDepartment(type, location) {
-  const loc=(location||'').toLowerCase(), txt=((document.getElementById('issueTitle')?.value||'')+' '+(document.getElementById('issueDesc')?.value||'')).toLowerCase();
-  if(type==='crime') return /kerala|kochi|thiruvananthapuram|kozhikode|thrissur|kannur|kollam|alappuzha|palakkad|wayanad|malappuram|ernakulam|kasaragod|idukki|pathanamthitta|kottayam/.test(loc)?'Kerala Police':'State Police';
-  if(type==='naturalDisaster'||type==='flood') return /cyclone|storm|weather|rain|wind/.test(txt)?'India Meteorological Department (IMD)':'State Disaster Management Authority';
-  return ({fire:'Fire and Emergency Services',roadAccident:'Traffic Police',infrastructure:'Public Works Department / Municipal Authority',pollution:'State Pollution Control Board',medical:'Health Department / Emergency Medical Services'})[type]||'Other / Manual assignment';
+function buildDepartmentOptions() {
+  const element = document.getElementById('issueDepartment');
+  if (!element) return;
+  const old = element.value;
+  const type = document.getElementById('issueType').value;
+  const location = document.getElementById('issueLocation').value;
+  const title = document.getElementById('issueTitle').value;
+  const description = document.getElementById('issueDesc').value;
+  const suggested = DepartmentRouting.suggest(type, location, title, description);
+  const choices = DepartmentRouting.options(location, title, description);
+  if (old && !choices.includes(old)) choices.unshift(old);
+  element.innerHTML = choices.map(department =>
+    `<option value="${Util.esc(department)}">${Util.esc(department)}${department === suggested ? ' (suggested)' : ''}</option>`
+  ).join('');
+  element.value = departmentTouched && choices.includes(old) ? old : suggested;
 }
-function buildDepartmentOptions(){const el=document.getElementById('issueDepartment');if(!el)return;const old=el.value,suggested=suggestedDepartment(document.getElementById('issueType')?.value,document.getElementById('issueLocation')?.value);el.innerHTML=DEPARTMENTS.map(d=>`<option value="${Util.esc(d)}">${Util.esc(d)}${d===suggested?' (suggested)':''}</option>`).join('');el.value=departmentTouched&&DEPARTMENTS.includes(old)?old:suggested;}function initPicker() {
+function initPicker() {
   if (!pickerMap) {
     pickerMap = createMap('pickerMap', {
       center: [78.9, 20.6],
@@ -409,7 +419,7 @@ function renderMyReports() {
   }
   tb.innerHTML = list.slice().reverse().map(i => `
     <tr>
-      <td>${i.image ? `<img class="td-thumb" src="${Util.esc(i.image)}" alt="">` : ''}</td>
+      <td>${IssuePreview.html(i,'my-report-preview')}</td>
       <td>${MapUtils.getTypeIcon(i.type)} <span style="font-size:12px">${Util.esc(i18n.t(i.type))}</span></td>
       <td><div style="font-weight:600;font-size:14px">${Util.esc(i.title)}</div><div style="font-size:11px;color:#999">${Util.esc(i.id)}</div></td>
       <td><span style="font-size:12px;color:#666">📍 ${Util.esc(i.location)}</span></td>
@@ -428,9 +438,7 @@ function renderFeed(reset) {
   feedData.slice(feedPage * 6, (feedPage + 1) * 6).forEach(i => {
     grid.insertAdjacentHTML('beforeend', `
       <div class="issue-card" style="cursor:pointer" onclick="IssueViewer.open('${i.id}')">
-        <div class="issue-card-img" style="background:linear-gradient(135deg,#e3f2fd,#e8eaf6);${i.image ? `background-image:url('${Util.esc(i.image)}');background-size:cover;background-position:center` : ''}">
-          ${i.image ? '' : `<span style="font-size:52px">${MapUtils.getTypeIcon(i.type)}</span>`}
-        </div>
+        ${IssuePreview.html(i,'issue-card-preview')}
         <div class="issue-card-body">
           <div class="issue-card-type">${Util.esc(i18n.t(i.type))}</div>
           <div class="issue-card-title">${Util.esc(i.title)}</div>
@@ -451,96 +459,6 @@ buildFilters(); buildTypeOptions(); buildMyFilters(); renderMyReports();
 ['issueType','issueLocation'].forEach(id=>document.getElementById(id).addEventListener(id==='issueType'?'change':'input',()=>{ departmentTouched=false; buildDepartmentOptions(); }));
 ['issueTitle','issueDesc'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{if(!departmentTouched)buildDepartmentOptions();}));
 document.getElementById('issueDepartment').addEventListener('change',()=>{departmentTouched=true;});
-const chatHistory = [];
-let reportDraftActive = false;
-function toggleChat(){const p=document.getElementById('wwChatPanel');p.hidden=!p.hidden;if(!p.hidden)document.getElementById('wwChatInput').focus();}
-function chatMessage(text,who){const box=document.getElementById('wwChatMessages'),el=document.createElement('div');el.className='ww-chat-bubble '+(who==='user'?'user':'');el.textContent=text;box.appendChild(el);box.scrollTop=box.scrollHeight;return el;}
-function isReportDraftRequest(text){
- if(/\bhow\b[\s\S]{0,40}\breport\b/i.test(text))return false;
- return /\b(?:start|generate|create|draft|prepare|write)\b[\s\S]{0,40}\b(?:report|issue|incident)\b/i.test(text)
-  || /\b(?:i want|i need|please)\s+(?:to\s+)?(?:report|file|create|draft)\b/i.test(text)
-  || /^\s*(?:report|file)\s+(?:this|an?|the)?\s*[\w-]+/i.test(text);
-}
-function findAssistantIssueContext(question){
- if(!/\b(?:ISS[-\s]?\d+|issues?|reports?|incidents?|cases?|under verification|verified|resolved)\b/i.test(question))return [];
- const all=DATA.getAll(),idMatch=question.match(/\bISS[-\s]?\d+\b/i),numberMatch=question.match(/\bissue\s+#?(\d+)\b/i);
- if(idMatch){const wanted=idMatch[0].replace(/[^a-z0-9]/gi,'').toUpperCase();const found=all.find(issue=>String(issue.id).toUpperCase()===wanted);return found?[assistantIssueRecord(found)]:[];}
- if(numberMatch){const wanted=Number(numberMatch[1]);const found=all.find(issue=>Number(String(issue.id).replace(/\D/g,''))===wanted);if(found)return[assistantIssueRecord(found)];}
- const normalize=value=>String(value||'').replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
- const stopWords=new Set(['all','an','and','are','details','did','do','does','for','from','give','has','have','in','is','it','me','my','of','on','show','tell','the','this','to','was','were','what','when','where','which','who','with','about','issue','issues','report','reports','incident','incidents','case','cases','status','current','latest']);
- const terms=normalize(question).split(/\s+/).filter(term=>term.length>2&&!stopWords.has(term));
- const statusQuestion=normalize(question);
- const scoreIssue=issue=>{
-  const fields=[
-   [normalize(issue.id),6],
-   [normalize(issue.title),5],
-   [normalize(issue.location),4],
-   [normalize(issue.type+' '+i18n.t(issue.type)),4],
-   [normalize(issue.department),2],
-   [normalize(issue.description),1],
-   [normalize(issue.status==='reviewing'?'under verification':issue.status),3]
-  ];
-  let score=0;
-  terms.forEach(term=>{const weights=fields.filter(([value])=>value.includes(term)).map(([,weight])=>weight);if(weights.length)score+=Math.max(...weights);});
-  if(/\b(?:under verification|reviewing|pending)\b/.test(statusQuestion)&&issue.status==='reviewing')score+=5;
-  if(/\bverified\b/.test(statusQuestion)&&issue.status==='verified')score+=5;
-  if(/\bresolved\b/.test(statusQuestion)&&issue.status==='resolved')score+=5;
-  return score;
- };
- let ranked=all.map(issue=>({issue,score:scoreIssue(issue)})).filter(item=>item.score>0);
- if(!ranked.length&&/\b(?:all|every|list)\b/.test(statusQuestion))ranked=all.map(issue=>({issue,score:0}));
- ranked.sort((a,b)=>b.score-a.score||String(b.issue.date||'').localeCompare(String(a.issue.date||'')));
- return ranked.slice(0,8).map(item=>assistantIssueRecord(item.issue));
-}
-function assistantIssueRecord(issue){
- const statuses={reviewing:'Under Verification',verified:'Verified',fake:'Fake/Rejected',resolved:'Resolved'};
- return{id:String(issue.id||''),title:String(issue.title||''),type:String(issue.type||'other'),description:String(issue.description||''),location:String(issue.location||''),department:String(issue.department||''),status:statuses[issue.status]||String(issue.status||'Unknown'),date:String(issue.date||''),severity:Number.isInteger(issue.severity)&&issue.severity>=1&&issue.severity<=5?issue.severity:3,reportCount:Number.isInteger(issue.reportCount)&&issue.reportCount>=0?issue.reportCount:0};
-}
-function appendReportDraftButton(bubble,draft){
- const button=document.createElement('button');button.type='button';button.className='btn btn-sm btn-primary';button.textContent='Review draft in Report Issue';button.addEventListener('click',()=>useAssistantReportDraft(draft));bubble.appendChild(document.createElement('br'));bubble.appendChild(button);
-}
-function useAssistantReportDraft(draft){
- if(isGuest){chatMessage('Please sign in as a user to use this draft in Report Issue. You can still review the draft in this chat.','bot');return;}
- if(!draft||!TYPE_ORDER.includes(draft.type)||!Number.isInteger(draft.severity)||draft.severity<1||draft.severity>5){chatMessage('This draft could not be applied safely. Please try generating it again.','bot');return;}
- resetReport();switchTab('report');reportDraftActive=false;
- document.getElementById('issueType').value=draft.type;
- document.getElementById('issueTitle').value=draft.title;
- document.getElementById('issueDesc').value=draft.description;
- document.getElementById('issueLocation').value=draft.location;
- const severity=document.querySelector(`input[name="severity"][value="${draft.severity}"]`);if(severity)severity.checked=true;
- departmentTouched=false;buildDepartmentOptions();
- chatMessage('Draft copied to Report Issue. Review the details, confirm the map location, add any evidence you want, then submit it yourself.','bot');
-}
-async function sendChat(e){
- e.preventDefault();
- const form=e.currentTarget,input=document.getElementById('wwChatInput'),q=input.value.trim();
- if(!q||form.getAttribute('aria-busy')==='true')return;
- chatMessage(q,'user');input.value='';
- if(reportDraftActive&&/^(cancel|stop|never mind|forget the draft)\b/i.test(q)){
-  reportDraftActive=false;const answer='Okay, I stopped the report draft. Ask me anything else.';chatMessage(answer,'bot');chatHistory.push({role:'user',content:q},{role:'assistant',content:answer});if(chatHistory.length>12)chatHistory.splice(0,chatHistory.length-12);return;
- }
- if(isReportDraftRequest(q))reportDraftActive=true;
- const task=reportDraftActive?'draft_report':'chat';
- const issueContext=task==='chat'?findAssistantIssueContext(q):[];
- chatHistory.push({role:'user',content:q});
- const answerBubble=chatMessage('Thinking…','bot'),submit=form.querySelector('button[type="submit"]');
- form.setAttribute('aria-busy','true');input.disabled=true;submit.disabled=true;
- try{
-  const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatHistory.slice(-12),task,issueContext})});
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(result.error||'The AI service could not answer right now. Please try again.');
-  if(typeof result.answer!=='string'||!result.answer.trim())throw new Error('The AI service returned an empty answer. Please try again.');
-  const answer=result.answer.trim();
-  answerBubble.textContent=answer;
-  if(result.reportDraft)appendReportDraftButton(answerBubble,result.reportDraft);
-  chatHistory.push({role:'assistant',content:answer});
-  if(chatHistory.length>12)chatHistory.splice(0,chatHistory.length-12);
- }catch(error){
-  answerBubble.textContent=error.message||'The AI service could not answer right now. Please try again.';
- }finally{
-  form.removeAttribute('aria-busy');input.disabled=false;submit.disabled=false;input.focus();
- }
-}
 // Admin verifies / resolves in another tab -> everything here updates instantly
 DATA.subscribe(() => {
   renderMyReports();

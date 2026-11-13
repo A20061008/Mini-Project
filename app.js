@@ -22,7 +22,10 @@ const Util = {
   },
   stars(n) { n = Math.max(0, Math.min(5, +n || 0)); return "★".repeat(n) + "☆".repeat(5 - n); },
   // Only allow data: images/videos or http(s) links as media sources
-  safeSrc(src) { return /^(data:(image|video)\/|https?:\/\/)/i.test(src || "") ? src : ""; },
+  safeSrc(src) {
+    const value = String(src || "");
+    return /^(data:(image|video)\/|https?:\/\/)/i.test(value) || /^\/(?!\/)[\w./-]+(?:\?[^#]*)?$/.test(value) ? value : "";
+  },
   readFile(file) {
     return new Promise((res, rej) => {
       const r = new FileReader();
@@ -326,6 +329,192 @@ const SAMPLE_ISSUES = [
   }
 ];
 
+const ISSUE_PREVIEWS = {
+  flood: {
+    src: "/assets/issue-previews/flood.jpg",
+    creator: "Podstawko",
+    title: "Red Dragon sculpture during River Lee flooding",
+    source: "https://commons.wikimedia.org/wiki/File:Red_Dragon_scuplture_during_River_Lee_flooding,_October_2023.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  naturalDisaster: {
+    src: "/assets/issue-previews/natural-disaster.jpg",
+    creator: "C messier",
+    title: "Earthquake damage in Choumeri",
+    source: "https://commons.wikimedia.org/wiki/File:%CE%9A%CE%B1%CF%84%CE%B1%CF%83%CF%84%CF%81%CE%BF%CF%86%CE%AD%CF%82_%CE%B1%CF%80%CF%8C_%CF%83%CE%B5%CE%B9%CF%83%CE%BC%CF%8C_28-9-2021_%CE%A7%CE%BF%CF%85%CE%BC%CE%AD%CF%81%CE%B9_0457.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  fire: {
+    src: "/assets/issue-previews/fire.jpg",
+    creator: "StevenTerblanche",
+    title: "Firefighter at work",
+    source: "https://commons.wikimedia.org/wiki/File:Firefighter,_Ashton_Bay,_March_2017.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  crime: {
+    src: "/assets/issue-previews/crime.jpg",
+    creator: "ThibautRe",
+    title: "Swedish police car with lights on",
+    source: "https://commons.wikimedia.org/wiki/File:Swedish_police_car_with_lights_on.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  roadAccident: {
+    src: "/assets/issue-previews/road-accident.jpg",
+    creator: "Shuets Udono",
+    title: "Japanese car accident",
+    source: "https://commons.wikimedia.org/wiki/File:Japanese_car_accident.jpg",
+    license: "CC BY-SA 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0/"
+  },
+  infrastructure: {
+    src: "/assets/issue-previews/infrastructure.jpg",
+    creator: "Irving Underhill",
+    title: "Manhattan Bridge construction, 1909",
+    source: "https://commons.wikimedia.org/wiki/File:Manhattan_Bridge_Construction_1909.jpg",
+    license: "Public domain",
+    licenseUrl: "https://commons.wikimedia.org/wiki/Commons:Licensing#Public_domain"
+  },
+  pollution: {
+    src: "/assets/issue-previews/pollution.jpg",
+    creator: "Radek Kołakowski",
+    title: "Smog in Warsaw",
+    source: "https://commons.wikimedia.org/wiki/File:Air_pollution_banner_Smog_in_Warsaw.jpg",
+    license: "CC BY 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/2.0/"
+  },
+  medical: {
+    src: "/assets/issue-previews/medical.jpg",
+    creator: "MdAbeerHussain",
+    title: "Mugda Medical College Hospital",
+    source: "https://commons.wikimedia.org/wiki/File:Mugda_Medical_College_Hospital_Building.jpg",
+    license: "CC0",
+    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  other: {
+    src: "/assets/issue-previews/other.jpg",
+    creator: "Pinakpani",
+    title: "Roads and streets in Visakhapatnam",
+    source: "https://commons.wikimedia.org/wiki/File:Road_and_streets_in_Visakhapatnam_city,_Andhra_Pradesh_06.jpg",
+    license: "CC BY 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0/"
+  }
+};
+
+const IssuePreview = {
+  for(issue) {
+    if (issue && issue.image) {
+      const evidence = Util.safeSrc(issue.image);
+      if (evidence) return { src: evidence, isEvidence: true };
+    }
+    return { ...(ISSUE_PREVIEWS[issue && issue.type] || ISSUE_PREVIEWS.other), isEvidence: false };
+  },
+  html(issue, className = "") {
+    const preview = this.for(issue);
+    const caption = preview.isEvidence
+      ? `<span class="issue-preview-label evidence">Reporter-provided evidence · unverified</span>`
+      : `<span class="issue-preview-label">Illustrative image · not the reported incident</span>
+         <span class="issue-preview-credit"><a href="${Util.esc(preview.source)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Photo: ${Util.esc(preview.creator)}</a> · <a href="${Util.esc(preview.licenseUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${Util.esc(preview.license)}</a></span>`;
+    return `<figure class="issue-preview ${Util.esc(className)}">
+      <img src="${Util.esc(preview.src)}" alt="${Util.esc(issue && issue.title ? issue.title : "Issue")} preview" loading="lazy" decoding="async">
+      <figcaption>${caption}</figcaption>
+    </figure>`;
+  }
+};
+
+const INDIA_REGIONS = [
+  { name: "Andhra Pradesh", aliases: ["andhra pradesh", "visakhapatnam", "vizag", "vijayawada", "kakinada", "tirupati", "nellore", "guntur", "anantapur", "kurnool", "kadapa", "srikakulam", "eluru", "amaravati"] },
+  { name: "Arunachal Pradesh", aliases: ["arunachal pradesh", "itanagar"] },
+  { name: "Assam", aliases: ["assam", "guwahati"] },
+  { name: "Bihar", aliases: ["bihar", "patna"] },
+  { name: "Chhattisgarh", aliases: ["chhattisgarh", "raipur"] },
+  { name: "Goa", aliases: ["goa", "panaji"] },
+  { name: "Gujarat", aliases: ["gujarat", "ahmedabad", "surat", "rajkot", "bhuj"] },
+  { name: "Haryana", aliases: ["haryana", "gurugram", "gurgaon", "faridabad"] },
+  { name: "Himachal Pradesh", aliases: ["himachal pradesh", "shimla", "kullu"] },
+  { name: "Jharkhand", aliases: ["jharkhand", "ranchi"] },
+  { name: "Karnataka", aliases: ["karnataka", "bengaluru", "bangalore", "mysuru", "mysore"] },
+  { name: "Kerala", aliases: ["kerala", "alappuzha", "kochi", "thiruvananthapuram", "kozhikode", "thrissur", "kannur", "kollam", "palakkad", "wayanad", "malappuram", "ernakulam", "kasaragod", "idukki", "pathanamthitta", "kottayam"] },
+  { name: "Madhya Pradesh", aliases: ["madhya pradesh", "bhopal", "indore"] },
+  { name: "Maharashtra", aliases: ["maharashtra", "mumbai", "pune", "nagpur", "nashik"] },
+  { name: "Manipur", aliases: ["manipur", "imphal"] },
+  { name: "Meghalaya", aliases: ["meghalaya", "shillong"] },
+  { name: "Mizoram", aliases: ["mizoram", "aizawl"] },
+  { name: "Nagaland", aliases: ["nagaland", "kohima"] },
+  { name: "Odisha", aliases: ["odisha", "bhubaneswar", "cuttack"] },
+  { name: "Punjab", aliases: ["punjab", "amritsar", "ludhiana"] },
+  { name: "Rajasthan", aliases: ["rajasthan", "jaipur", "jodhpur"] },
+  { name: "Sikkim", aliases: ["sikkim", "gangtok"] },
+  { name: "Tamil Nadu", aliases: ["tamil nadu", "chennai", "villupuram", "trichy", "tiruchirappalli", "coimbatore"] },
+  { name: "Telangana", aliases: ["telangana", "hyderabad", "warangal", "karimnagar", "nizamabad", "khammam"] },
+  { name: "Tripura", aliases: ["tripura", "agartala"] },
+  { name: "Uttar Pradesh", aliases: ["uttar pradesh", "mathura", "lucknow", "kanpur", "agra", "varanasi"] },
+  { name: "Uttarakhand", aliases: ["uttarakhand", "dehradun"] },
+  { name: "West Bengal", aliases: ["west bengal", "kolkata", "calcutta", "salt lake"] },
+  { name: "Andaman and Nicobar Islands", aliases: ["andaman and nicobar", "port blair"] },
+  { name: "Chandigarh", aliases: ["chandigarh"] },
+  { name: "Dadra and Nagar Haveli and Daman and Diu", aliases: ["dadra and nagar haveli", "daman", "diu"] },
+  { name: "Delhi", aliases: ["delhi", "new delhi", "seemapuri"] },
+  { name: "Jammu and Kashmir", aliases: ["jammu and kashmir", "srinagar", "jammu"] },
+  { name: "Ladakh", aliases: ["ladakh", "leh"] },
+  { name: "Lakshadweep", aliases: ["lakshadweep"] },
+  { name: "Puducherry", aliases: ["puducherry", "pondicherry"] }
+];
+
+const DepartmentRouting = {
+  region(location) {
+    const normalized = ` ${String(location || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+    const matches = INDIA_REGIONS.flatMap(region =>
+      region.aliases
+        .filter(alias => normalized.includes(` ${alias} `))
+        .map(alias => ({ region, length: alias.length }))
+    ).sort((a, b) => b.length - a.length);
+    return matches.length ? matches[0].region : null;
+  },
+  suggest(type, location, title = "", description = "") {
+    const areaText = `${location} ${title} ${description}`;
+    const region = this.region(areaText);
+    const state = region ? region.name : "";
+    const localName = state ? `${state} ` : "Local ";
+    const text = `${title} ${description}`.toLowerCase();
+    if (type === "crime") return state ? `${state} Police` : "Local Police / District Police";
+    if (type === "fire") return `${localName}Fire and Emergency Services`;
+    if (type === "roadAccident") return `${localName}Traffic Police`;
+    if (type === "infrastructure") {
+      const cityAuthorities = [
+        [/\b(mumbai|kurla|sion|dharavi)\b/, "Brihanmumbai Municipal Corporation"],
+        [/\b(kolkata|calcutta|salt lake)\b/, "Kolkata Municipal Corporation"],
+        [/\b(chennai)\b/, "Greater Chennai Corporation"],
+        [/\b(hyderabad|amberpet)\b/, "Greater Hyderabad Municipal Corporation"],
+        [/\b(bengaluru|bangalore)\b/, "Bruhat Bengaluru Mahanagara Palike"],
+        [/\b(visakhapatnam|vizag)\b/, "Greater Visakhapatnam Municipal Corporation"],
+        [/\b(vijayawada)\b/, "Vijayawada Municipal Corporation"],
+        [/\b(delhi|new delhi)\b/, "Municipal Corporation of Delhi"]
+      ];
+      const cityAuthority = cityAuthorities.find(([pattern]) => pattern.test(location || title));
+      return cityAuthority ? cityAuthority[1] : `${localName}Public Works Department / Municipal Authority`;
+    }
+    if (type === "pollution") {
+      return state === "Delhi" ? "Delhi Pollution Control Committee" : `${localName}Pollution Control Board`;
+    }
+    if (type === "medical") return `${localName}Health Department / Emergency Medical Services`;
+    if (type === "flood") return `${localName}State Disaster Management Authority`;
+    if (type === "naturalDisaster") {
+      return /\b(cyclone|storm|weather|rain|wind|forecast|warning)\b/.test(text)
+        ? `India Meteorological Department (IMD) / ${state ? state + " " : ""}State Disaster Management Authority`
+        : `${localName}State Disaster Management Authority`;
+    }
+    return `${localName}District Administration / Municipal Authority`;
+  },
+  options(location, title = "", description = "") {
+    const types = ["crime", "fire", "roadAccident", "infrastructure", "pollution", "medical", "flood", "naturalDisaster", "other"];
+    return [...new Set(types.map(type => this.suggest(type, location, title, description)))];
+  }
+};
+
 // =====================================================
 // AUTH MANAGER
 // =====================================================
@@ -397,7 +586,21 @@ const DATA = {
   CONF_KEY: "ww_confirmed",
 
   init() {
-    if (!localStorage.getItem(this.KEY)) this._write(SAMPLE_ISSUES, true);
+    if (!localStorage.getItem(this.KEY)) {
+      this._write(SAMPLE_ISSUES.map(issue => ({
+        ...issue,
+        department: DepartmentRouting.suggest(issue.type, issue.location, issue.title, issue.description)
+      })), true);
+      return;
+    }
+    const issues = this.getAll();
+    let updated = false;
+    issues.forEach(issue => {
+      if (!issue || typeof issue !== "object" || Object.prototype.hasOwnProperty.call(issue, "department")) return;
+      issue.department = DepartmentRouting.suggest(issue.type, issue.location, issue.title, issue.description);
+      updated = true;
+    });
+    if (updated) this._write(issues, true);
   },
   getAll() {
     try { return JSON.parse(localStorage.getItem(this.KEY) || "[]"); } catch (e) { return []; }
@@ -439,6 +642,15 @@ const DATA = {
     if (!i) return null;
     i.department = department || "";
     return this._write(all) ? i : null;
+  },
+  autoAssignUnassignedDepartments() {
+    const all = this.getAll();
+    const unassigned = all.filter(issue => !String(issue.department || "").trim());
+    if (!unassigned.length) return 0;
+    unassigned.forEach(issue => {
+      issue.department = DepartmentRouting.suggest(issue.type, issue.location, issue.title, issue.description);
+    });
+    return this._write(all) ? unassigned.length : null;
   },
   setStatus(id, status) {
     const all = this.getAll();
@@ -919,8 +1131,10 @@ const IssueViewer = {
       ov.addEventListener("click", e => { if (e.target === ov) IssueViewer.close(); });
       document.body.appendChild(ov);
     }
-    const reported = Util.mediaHtml({ type: "image", src: i.image }) ||
-      `<div class="ww-noimg">${Util.esc(i18n.t("noImage"))}</div>`;
+    const hasEvidence = Boolean(i.image && Util.safeSrc(i.image));
+    const reported = hasEvidence
+      ? Util.mediaHtml({ type: "image", src: i.image })
+      : IssuePreview.html(i, "viewer-preview");
     let resolution = "";
     if (i.status === "resolved") {
       const media = i.resolutionMedia || (i.resolutionImage ? { type: "image", src: i.resolutionImage } : null);
@@ -945,7 +1159,7 @@ const IssueViewer = {
           </div>
           <p style="font-size:14px;color:#444;line-height:1.6">${Util.esc(i.description)}</p>
           <p style="font-size:12px;color:#888;margin:8px 0 14px">📍 ${Util.esc(i.location)} &nbsp;·&nbsp; 📅 ${Util.esc(i.date)}</p>
-          <h4 class="ww-sub">${Util.esc(i18n.t("reportedImage"))}</h4>
+          <h4 class="ww-sub">${hasEvidence ? Util.esc(i18n.t("reportedImage")) : "Illustrative preview · not report evidence"}</h4>
           ${reported}
           ${resolution}
         </div>

@@ -10,10 +10,11 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
 HOST = os.environ.get("HOST", "127.0.0.1")
-PORT = int(os.environ.get("PORT", "8000"))
-AI_BASE_URL = os.environ.get("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-AI_API_KEY = os.environ.get("AI_API_KEY", "")
-AI_MODEL = os.environ.get("AI_MODEL", "gpt-4o-mini")
+PORT = int(os.environ.get("PORT", "8001"))
+AI_BASE_URL = os.environ.get("AI_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+AI_BASE_URL = AI_BASE_URL.rstrip("/")
+AI_API_KEY = os.environ.get("AI_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+AI_MODEL = os.environ.get("AI_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 MAX_BODY_BYTES = 64 * 1024
 MAX_MESSAGES = 12
 MAX_MESSAGE_LENGTH = 4000
@@ -60,7 +61,19 @@ PUBLIC_FILES = {
     "/admin.html": "admin.html",
     "/styles.css": "styles.css",
     "/app.js": "app.js",
+    "/assistant.js": "assistant.js",
     "/translations.js": "translations.js",
+    "/tutorial.mp4": "tutorial.mp4",
+    "/tutorial-poster.jpg": "tutorial-poster.jpg",
+    "/assets/issue-previews/flood.jpg": str(Path("assets") / "issue-previews" / "flood.jpg"),
+    "/assets/issue-previews/natural-disaster.jpg": str(Path("assets") / "issue-previews" / "natural-disaster.jpg"),
+    "/assets/issue-previews/fire.jpg": str(Path("assets") / "issue-previews" / "fire.jpg"),
+    "/assets/issue-previews/crime.jpg": str(Path("assets") / "issue-previews" / "crime.jpg"),
+    "/assets/issue-previews/road-accident.jpg": str(Path("assets") / "issue-previews" / "road-accident.jpg"),
+    "/assets/issue-previews/infrastructure.jpg": str(Path("assets") / "issue-previews" / "infrastructure.jpg"),
+    "/assets/issue-previews/pollution.jpg": str(Path("assets") / "issue-previews" / "pollution.jpg"),
+    "/assets/issue-previews/medical.jpg": str(Path("assets") / "issue-previews" / "medical.jpg"),
+    "/assets/issue-previews/other.jpg": str(Path("assets") / "issue-previews" / "other.jpg"),
 }
 
 SYSTEM_PROMPT = """You are WorldWatch Assistant, a helpful general-purpose AI assistant embedded in the WorldWatch civic-issue reporting website.
@@ -263,6 +276,10 @@ class WorldWatchHandler(BaseHTTPRequestHandler):
             content_type = "text/css; charset=utf-8"
         elif file_path.suffix == ".js":
             content_type = "text/javascript; charset=utf-8"
+        elif file_path.suffix.lower() in {".jpg", ".jpeg"}:
+            content_type = "image/jpeg"
+        elif file_path.suffix.lower() == ".mp4":
+            content_type = "video/mp4"
         if head_only:
             self.send_response(200)
             self.send_header("Content-Type", content_type)
@@ -416,6 +433,8 @@ if __name__ == "__main__":
     server = ThreadingHTTPServer((HOST, PORT), WorldWatchHandler)
     print(f"WorldWatch is available at http://{HOST}:{PORT}")
     print(f"AI provider: {AI_BASE_URL} (model: {AI_MODEL})")
+    if not AI_API_KEY and PROVIDER.hostname not in LOCAL_HOSTS:
+        print("Warning: set AI_API_KEY (or OPENAI_API_KEY) to enable AI responses.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

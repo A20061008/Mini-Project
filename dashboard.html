@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorldWatch – User Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Noto+Sans+Bengali:wght@400;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&family=Noto+Sans+Malayalam:wght@400;600&family=Noto+Sans+Oriya:wght@400;600&family=Noto+Sans+Tamil:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-container">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🌍</div>
+      <div>
+        <div class="sidebar-title" data-i18n="appName">WorldWatch</div>
+        <div class="sidebar-subtitle" data-i18n="tagline">Global Issue Tracker</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label" data-i18n="navigation">Navigation</div>
+      <a class="nav-item active" data-tab="map" href="#" onclick="switchTab('map');return false">
+        <i class="fa fa-map"></i> <span data-i18n="mapView">Map View</span>
+      </a>
+      <a class="nav-item member-only" data-tab="report" href="#" onclick="switchTab('report');return false">
+        <i class="fa fa-plus-circle"></i> <span data-i18n="reportIssue">Report Issue</span>
+      </a>
+      <a class="nav-item member-only" data-tab="myreports" href="#" onclick="switchTab('myreports');return false">
+        <i class="fa fa-list"></i> <span data-i18n="myReports">My Reports</span>
+        <span class="nav-badge" id="myReportsBadge">0</span>
+      </a>
+      <a class="nav-item" data-tab="analytics" href="#" onclick="switchTab('analytics');return false">
+        <i class="fa fa-chart-bar"></i> <span data-i18n="analytics">Analytics</span>
+      </a>
+      <a class="nav-item" data-tab="feed" href="#" onclick="switchTab('feed');return false">
+        <i class="fa fa-newspaper"></i> <span data-i18n="newsFeed">News Feed</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="stat-card" style="margin:0;padding:12px;background:rgba(255,255,255,0.08);border:none">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px" data-i18n="loggedInAs">Logged in as</div>
+        <div style="font-size:13px;font-weight:600;color:#fff" id="sidebarUserName">User</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5)" id="sidebarUserEmail"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left">
+        <button class="btn-icon" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fa fa-bars"></i></button>
+        <div class="page-title" id="pageTitle" data-i18n="mapView">Map View</div>
+      </div>
+      <div class="header-right">
+        <select class="lang-selector" id="langSelector">
+          <option value="en">🌐 English</option>
+          <option value="kn">ಕನ್ನಡ</option>
+          <option value="hi">हिन्दी</option>
+          <option value="te">తెలుగు</option>
+          <option value="ta">தமிழ்</option>
+          <option value="mr">मराठी</option>
+          <option value="ml">മലയാളം</option>
+          <option value="od">ଓଡ଼ିଆ</option>
+          <option value="bn">বাংলা</option>
+        </select>
+        <div class="user-avatar" id="userAvatar">U</div>
+        <button class="btn btn-outline btn-sm" onclick="AUTH.logout()">
+          <i class="fa fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="content-area">
+
+      <!-- TAB: MAP -->
+      <div class="tab-content active" id="tab-map">
+        <div class="map-filter-bar" id="mapFilters"></div>
+        <div id="map" class="map-box"></div>
+        <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:13px;color:#666">
+          <span><b style="color:#2e7d32">✔</b> <span data-i18n="verified">Verified</span></span>
+          <span><b style="color:#e0a800">⏳</b> <span data-i18n="underReview">Under Verification</span></span>
+          <span><b style="color:#d32f2f">✖</b> <span data-i18n="fake">Fake / Rejected</span></span>
+          <span><b style="color:#1565c0">✔✔</b> <span data-i18n="resolved">Resolved</span></span>
+          <span style="margin-left:auto;font-style:italic" data-i18n="circleSize">Circle size = number of reports</span>
+        </div>
+      </div>
+
+      <!-- TAB: REPORT -->
+      <div class="tab-content" id="tab-report">
+        <div class="card" style="max-width:760px;margin:0 auto">
+          <div class="card-header">
+            <div class="card-title"><i class="fa fa-plus-circle" style="color:#1a73e8"></i> <span data-i18n="reportIssue">Report Issue</span></div>
+          </div>
+          <div class="card-body">
+            <form id="reportForm" onsubmit="submitReport(event)">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="form-group">
+                  <label class="form-label"><span data-i18n="issueType">Issue Type</span> <span class="required">*</span></label>
+                  <select class="form-control" id="issueType" required></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label"><span data-i18n="severity">Severity</span> <span class="required">*</span></label>
+                  <div class="star-rating" id="severityRating">
+                    <input type="radio" id="s5" name="severity" value="5"><label for="s5">★</label>
+                    <input type="radio" id="s4" name="severity" value="4"><label for="s4">★</label>
+                    <input type="radio" id="s3" name="severity" value="3" checked><label for="s3">★</label>
+                    <input type="radio" id="s2" name="severity" value="2"><label for="s2">★</label>
+                    <input type="radio" id="s1" name="severity" value="1"><label for="s1">★</label>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Responsible department</label>
+                <select class="form-control" id="issueDepartment"></select>
+                <div style="font-size:12px;color:#777;margin-top:5px">Suggested from issue type and location; you can change it.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label"><span data-i18n="title">Issue Title</span> <span class="required">*</span></label>
+                <input type="text" class="form-control" id="issueTitle" maxlength="120" data-i18n="phTitle" data-i18n-attr="placeholder" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label"><span data-i18n="description">Description</span> <span class="required">*</span></label>
+                <textarea class="form-control" id="issueDesc" rows="4" maxlength="1000" data-i18n="phDesc" data-i18n-attr="placeholder" required></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label"><span data-i18n="location">Location</span> <span class="required">*</span></label>
+                <div style="display:flex;gap:8px;margin-bottom:8px">
+                  <input type="text" class="form-control" id="issueLocation" data-i18n="phLocation" data-i18n-attr="placeholder" required>
+                  <button type="button" class="btn btn-outline" onclick="detectLocation()" style="white-space:nowrap;flex-shrink:0">
+                    <i class="fa fa-location-dot"></i> GPS
+                  </button>
+                </div>
+                <div id="pickerMap" style="height:240px;border-radius:12px;border:1px solid #e0e0e0"></div>
+                <div style="font-size:12px;color:#888;margin-top:6px" id="locationStatus" data-i18n="pickLocation">Click the map to mark the exact location, or use GPS.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="uploadImage">Upload Evidence Image</label>
+                <div class="file-upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()" ondragover="handleDragOver(event)" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)">
+                  <div class="file-upload-icon"><i class="fa fa-cloud-upload-alt"></i></div>
+                  <div class="file-upload-text"><span data-i18n="clickToUpload">Click to upload</span> <span data-i18n="dragDrop">or drag and drop</span></div>
+                  <div style="font-size:12px;color:#bbb;margin-top:4px" data-i18n="imageFormats">PNG, JPG, GIF</div>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="if(this.files[0]) processImageFile(this.files[0])">
+                <div class="file-preview" id="filePreview">
+                  <img id="previewImg" src="" alt="">
+                  <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px" onclick="clearImage()">✕ <span data-i18n="clear">Clear</span></button>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px">
+                <button type="submit" class="btn btn-primary btn-lg" style="flex:1">
+                  <i class="fa fa-paper-plane"></i> <span data-i18n="submit">Submit Report</span>
+                </button>
+                <button type="button" class="btn btn-outline btn-lg" onclick="resetReport()">
+                  <i class="fa fa-rotate-left"></i> <span data-i18n="clear">Clear</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: MY REPORTS -->
+      <div class="tab-content" id="tab-myreports">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <h2 style="font-size:18px;font-weight:700" data-i18n="myReports">My Reports</h2>
+          <div id="myFilters" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr>
+              <th></th><th data-i18n="type">Type</th><th data-i18n="title">Title</th><th data-i18n="location">Location</th>
+              <th data-i18n="date">Date</th><th data-i18n="severity">Severity</th><th data-i18n="status">Status</th><th data-i18n="actions">Actions</th>
+            </tr></thead>
+            <tbody id="myReportsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: ANALYTICS -->
+      <div class="tab-content" id="tab-analytics">
+        <div class="stats-grid" id="analyticsStats"></div>
+        <div class="charts-grid">
+          <div class="chart-card"><div class="card-title" style="margin-bottom:16px"><i class="fa fa-chart-bar" style="color:#1a73e8"></i> <span data-i18n="issuesByCategory">Issues by Category</span></div><canvas id="categoryChart"></canvas></div>
+          <div class="chart-card"><div class="card-title" style="margin-bottom:16px"><i class="fa fa-chart-line" style="color:#4caf50"></i> <span data-i18n="issuesTrend">Issues Over Time</span></div><canvas id="trendChart"></canvas></div>
+          <div class="chart-card"><div class="card-title" style="margin-bottom:16px"><i class="fa fa-chart-pie" style="color:#ff5722"></i> <span data-i18n="issuesByStatus">Issues by Status</span></div><canvas id="statusChart"></canvas></div>
+          <div class="chart-card"><div class="card-title" style="margin-bottom:16px"><i class="fa fa-star" style="color:#ffc107"></i> <span data-i18n="issuesBySeverity">Issues by Severity</span></div><canvas id="severityChart"></canvas></div>
+        </div>
+
+        <div class="section-heading"><i class="fa fa-diagram-project"></i> <span data-i18n="typeAnalytics">Analysis by Issue Type</span></div>
+        <div style="font-size:13px;color:#777;margin-bottom:12px" data-i18n="selectType">Select an issue type to see its own flowchart, bar graph and line graph</div>
+        <div class="type-tabs" id="typeTabs"></div>
+        <div id="typePanel"></div>
+      </div>
+
+      <!-- TAB: FEED -->
+      <div class="tab-content" id="tab-feed">
+        <h2 style="font-size:18px;font-weight:700;margin-bottom:20px">
+          <i class="fa fa-newspaper" style="color:#e94560"></i> <span data-i18n="liveFeed">Live Issue Feed</span>
+        </h2>
+        <div class="issues-grid" id="feedGrid"></div>
+        <div style="text-align:center;margin-top:24px">
+          <button class="btn btn-outline" id="loadMoreBtn" onclick="renderFeed(false)"><i class="fa fa-refresh"></i> <span data-i18n="loadMore">Load More</span></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+<div class="ww-chat" id="wwChat"><button class="ww-chat-toggle" type="button" onclick="toggleChat()" aria-label="Open WorldWatch AI assistant">💬 <span>AI Assistant</span></button><section class="ww-chat-panel" id="wwChatPanel" aria-label="WorldWatch AI assistant" hidden><header><strong>WorldWatch AI Assistant</strong><button type="button" onclick="toggleChat()" aria-label="Close">×</button></header><div class="ww-chat-messages" id="wwChatMessages" aria-live="polite"><div class="ww-chat-bubble">Hi! Ask me anything, ask about an issue ID or title, or ask me to draft an issue report.</div></div><form class="ww-chat-form" onsubmit="sendChat(event)"><input id="wwChatInput" aria-label="Ask a question" placeholder="Ask me anything…" maxlength="4000"><button type="submit">Send</button></form><small>AI answers may be inaccurate and are not live forecasts. Civic guidance is preliminary; emergencies in India: call 112. Reports are not sent automatically. Matching issue details may be sent to the configured AI provider. Generated reports remain drafts until you review and submit them.</small></section></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
+<script src="translations.js"></script>
+<script src="app.js"></script>
+<script>
+// ---------- Auth ----------
+const session = AUTH.requireAuth('user');
+const isGuest = !!(session && session.guest);
+if (session) {
+  document.getElementById('sidebarUserName').textContent = session.name;
+  document.getElementById('sidebarUserEmail').textContent = isGuest ? '' : session.email;
+  document.getElementById('userAvatar').textContent = session.name[0].toUpperCase();
+  if (isGuest) document.querySelectorAll('.member-only').forEach(el => el.style.display = 'none');
+}
+
+const TYPE_ORDER = ['naturalDisaster','flood','fire','roadAccident','crime','infrastructure','pollution','medical','other'];
+const TITLES = { map:'mapView', report:'reportIssue', myreports:'myReports', analytics:'analytics', feed:'newsFeed' };
+
+// ---------- Tabs ----------
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+  document.getElementById('tab-' + tab).classList.add('active');
+  const pt = document.getElementById('pageTitle');
+  pt.setAttribute('data-i18n', TITLES[tab]);
+  pt.textContent = i18n.t(TITLES[tab]);
+  document.getElementById('sidebar').classList.remove('open');
+  if (tab === 'map') MapView.refresh();
+  if (tab === 'report') initPicker();
+  if (tab === 'myreports') renderMyReports();
+  if (tab === 'analytics') Analytics.init();
+  if (tab === 'feed') renderFeed(true);
+}
+
+// ---------- Map ----------
+function buildFilters() {
+  const bar = document.getElementById('mapFilters');
+  const cur = MapView.filter;
+  bar.innerHTML = `<button class="filter-btn ${cur==='all'?'active':''}" onclick="filterMap('all')"><i class="fa fa-globe"></i> ${Util.esc(i18n.t('filterAll'))}</button>` +
+    TYPE_ORDER.map(k => `<button class="filter-btn ${cur===k?'active':''}" onclick="filterMap('${k}')">${MapUtils.getTypeIcon(k)} ${Util.esc(i18n.t(k))}</button>`).join('');
+}
+function filterMap(type) { MapView.setFilter(type); buildFilters(); }
+
+// ---------- Report form ----------
+let pickerMap = null, pickerMarker = null, picked = null, imgData = null;
+
+function buildTypeOptions() {
+  const sel = document.getElementById('issueType'), cur = sel.value;
+  sel.innerHTML = `<option value="">--</option>` + TYPE_ORDER.map(k => `<option value="${k}">${MapUtils.getTypeIcon(k)} ${Util.esc(i18n.t(k))}</option>`).join('');
+  sel.value = cur; buildDepartmentOptions();
+}
+let departmentTouched=false;
+const DEPARTMENTS = ['Kerala Police','State Police','India Meteorological Department (IMD)','State Disaster Management Authority','Fire and Emergency Services','Traffic Police','Public Works Department / Municipal Authority','State Pollution Control Board','Health Department / Emergency Medical Services','Other / Manual assignment'];
+function suggestedDepartment(type, location) {
+  const loc=(location||'').toLowerCase(), txt=((document.getElementById('issueTitle')?.value||'')+' '+(document.getElementById('issueDesc')?.value||'')).toLowerCase();
+  if(type==='crime') return /kerala|kochi|thiruvananthapuram|kozhikode|thrissur|kannur|kollam|alappuzha|palakkad|wayanad|malappuram|ernakulam|kasaragod|idukki|pathanamthitta|kottayam/.test(loc)?'Kerala Police':'State Police';
+  if(type==='naturalDisaster'||type==='flood') return /cyclone|storm|weather|rain|wind/.test(txt)?'India Meteorological Department (IMD)':'State Disaster Management Authority';
+  return ({fire:'Fire and Emergency Services',roadAccident:'Traffic Police',infrastructure:'Public Works Department / Municipal Authority',pollution:'State Pollution Control Board',medical:'Health Department / Emergency Medical Services'})[type]||'Other / Manual assignment';
+}
+function buildDepartmentOptions(){const el=document.getElementById('issueDepartment');if(!el)return;const old=el.value,suggested=suggestedDepartment(document.getElementById('issueType')?.value,document.getElementById('issueLocation')?.value);el.innerHTML=DEPARTMENTS.map(d=>`<option value="${Util.esc(d)}">${Util.esc(d)}${d===suggested?' (suggested)':''}</option>`).join('');el.value=departmentTouched&&DEPARTMENTS.includes(old)?old:suggested;}function initPicker() {
+  if (!pickerMap) {
+    pickerMap = createMap('pickerMap', {
+      center: [78.9, 20.6],
+      zoom: 4,
+      onLoad: map => map.on('click', e => setPicked(e.lngLat.lat, e.lngLat.lng))
+    });
+  } else {
+    setTimeout(() => pickerMap.resize(), 80);
+  }
+}
+function setPicked(lat, lng) {
+  picked = { lat, lng };
+  if (pickerMarker) pickerMarker.setLngLat([lng, lat]);
+  else pickerMarker = new maplibregl.Marker({ color: '#1a73e8' }).setLngLat([lng, lat]).addTo(pickerMap);
+  document.getElementById('locationStatus').textContent = '✅ ' + i18n.t('locationSet') + ': ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+}
+function detectLocation() {
+  const st = document.getElementById('locationStatus');
+  st.textContent = '📡 …';
+  if (!navigator.geolocation) { st.textContent = '❌ ' + i18n.t('gpsFailed'); return; }
+  navigator.geolocation.getCurrentPosition(async pos => {
+    initPicker();
+    setPicked(pos.coords.latitude, pos.coords.longitude);
+    pickerMap.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 13 });
+    const loc = document.getElementById('issueLocation');
+    if (!loc.value) loc.value = pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4);
+  }, () => { st.textContent = '❌ ' + i18n.t('gpsFailed'); }, { timeout: 10000 });
+}
+async function geocode(q) {
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+    const j = await r.json();
+    if (j[0]) return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) };
+  } catch (e) {}
+  return null;
+}
+function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) processImageFile(e.dataTransfer.files[0]);
+}
+async function processImageFile(file) {
+  if (!file.type.startsWith('image/')) { Toast.show('Please choose an image file.', 'error'); return; }
+  try {
+    imgData = await Util.compressImage(file);
+    const preview=document.getElementById('previewImg');
+    preview.onload=()=>{let box=document.getElementById('evidenceReview');if(!box){box=document.createElement('div');box.id='evidenceReview';box.style.cssText='font-size:12px;color:#526273;margin-top:8px';document.getElementById('filePreview').before(box);}box.style.display='block';box.textContent=analyzeEvidenceImage(preview);};
+    preview.src = imgData;
+    document.getElementById('filePreview').style.display = 'block';
+  } catch (e) { Toast.show('Could not read that image.', 'error'); }
+}
+function clearImage() {
+  imgData = null;
+  document.getElementById('filePreview').style.display = 'none';
+  const check=document.getElementById('evidenceReview');if(check)check.style.display='none';
+  document.getElementById('imageInput').value = '';
+}
+function analyzeEvidenceImage(image) {
+  const width = image.naturalWidth, height = image.naturalHeight;
+  const notes = [];
+  if (width < 320 || height < 240) notes.push('low resolution may make details hard to review');
+  try {
+    const canvas = document.createElement('canvas'), sampleSize = 64;
+    canvas.width = Math.min(sampleSize, width);
+    canvas.height = Math.min(sampleSize, height);
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let total = 0, totalSquared = 0, count = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const luminance = 0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2];
+      total += luminance;
+      totalSquared += luminance * luminance;
+      count++;
+    }
+    const average = total / count;
+    const contrast = Math.sqrt(Math.max(0, totalSquared / count - average * average));
+    if (average < 35) notes.push('image appears very dark');
+    else if (average > 225) notes.push('image appears overexposed');
+    if (contrast < 12) notes.push('image has very little visual contrast');
+  } catch (error) {
+    notes.push('image quality could not be fully assessed');
+  }
+  return `Preliminary image screening: ${width} × ${height}px; ${notes.length ? notes.join('; ') + '.' : 'no obvious resolution or lighting issue detected.'} This does not identify the scene or confirm that an incident is genuine; an administrator must review it.`;
+}
+function resetReport() {
+  document.getElementById('reportForm').reset();
+  clearImage(); picked = null;
+  if (pickerMarker) { pickerMarker.remove(); pickerMarker = null; }
+  document.getElementById('locationStatus').textContent = i18n.t('pickLocation');
+}
+async function submitReport(e) {
+  e.preventDefault();
+  if (isGuest) { Toast.show(i18n.t('signInToReport'), 'warning'); return; }
+  const type = document.getElementById('issueType').value;
+  const title = document.getElementById('issueTitle').value.trim();
+  const desc = document.getElementById('issueDesc').value.trim();
+  const location = document.getElementById('issueLocation').value.trim();
+  const severity = parseInt(document.querySelector('input[name="severity"]:checked')?.value || 3, 10);
+  if (!type || !title || !desc || !location) { Toast.show(i18n.t('fillFields'), 'error'); return; }
+  if (!picked) picked = await geocode(location);          // fall back to looking up the typed place name
+  if (!picked) { Toast.show(i18n.t('pickLocation'), 'error'); return; }
+  const issue = DATA.save({
+    type, title, description: desc, location, department: document.getElementById('issueDepartment').value,
+    lat: +picked.lat.toFixed(5), lng: +picked.lng.toFixed(5),
+    severity, reporter: session.email, image: imgData
+  });
+  if (!issue) return;
+  Toast.show(i18n.t('successSubmit'), 'success');
+  resetReport();
+  MapView.setFilter('all'); buildFilters();
+  switchTab('myreports');
+}
+
+// ---------- My reports ----------
+let myFilter = 'all';
+function buildMyFilters() {
+  const defs = [['all','all',''],['verified','verified','✅'],['reviewing','underReview','🔍'],['resolved','resolved','✔️'],['fake','fake','❌']];
+  document.getElementById('myFilters').innerHTML = defs.map(([v,k,ic]) =>
+    `<button class="filter-btn ${myFilter===v?'active':''}" onclick="myFilter='${v}';buildMyFilters();renderMyReports()">${ic} ${Util.esc(i18n.t(k))}</button>`).join('');
+}
+function myIssues() { return DATA.getAll().filter(i => i.reporter === session.email); }
+function renderMyReports() {
+  const all = myIssues();
+  document.getElementById('myReportsBadge').textContent = all.length;
+  const list = myFilter === 'all' ? all : all.filter(i => i.status === myFilter);
+  const tb = document.getElementById('myReportsBody');
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="8" class="empty-note"><div style="font-size:36px">📭</div>${Util.esc(i18n.t('noIssues'))}</td></tr>`;
+    return;
+  }
+  tb.innerHTML = list.slice().reverse().map(i => `
+    <tr>
+      <td>${i.image ? `<img class="td-thumb" src="${Util.esc(i.image)}" alt="">` : ''}</td>
+      <td>${MapUtils.getTypeIcon(i.type)} <span style="font-size:12px">${Util.esc(i18n.t(i.type))}</span></td>
+      <td><div style="font-weight:600;font-size:14px">${Util.esc(i.title)}</div><div style="font-size:11px;color:#999">${Util.esc(i.id)}</div></td>
+      <td><span style="font-size:12px;color:#666">📍 ${Util.esc(i.location)}</span></td>
+      <td style="font-size:12px">${Util.esc(i.date)}</td>
+      <td><span style="color:#ffc107">${Util.stars(i.severity)}</span></td>
+      <td>${Util.statusBadge(i.status)}</td>
+      <td><button class="btn btn-sm ${i.status==='resolved'?'btn-primary':'btn-outline'}" onclick="IssueViewer.open('${i.id}')">${i.status==='resolved' ? '✔️ ' + Util.esc(i18n.t('viewResolution')) : '🔎'}</button></td>
+    </tr>`).join('');
+}
+
+// ---------- Feed ----------
+let feedPage = 0, feedData = [];
+function renderFeed(reset) {
+  const grid = document.getElementById('feedGrid');
+  if (reset) { feedPage = 0; grid.innerHTML = ''; feedData = DATA.getAll().filter(i => i.status !== 'fake').sort((a, b) => b.reportCount - a.reportCount); }
+  feedData.slice(feedPage * 6, (feedPage + 1) * 6).forEach(i => {
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="issue-card" style="cursor:pointer" onclick="IssueViewer.open('${i.id}')">
+        <div class="issue-card-img" style="background:linear-gradient(135deg,#e3f2fd,#e8eaf6);${i.image ? `background-image:url('${Util.esc(i.image)}');background-size:cover;background-position:center` : ''}">
+          ${i.image ? '' : `<span style="font-size:52px">${MapUtils.getTypeIcon(i.type)}</span>`}
+        </div>
+        <div class="issue-card-body">
+          <div class="issue-card-type">${Util.esc(i18n.t(i.type))}</div>
+          <div class="issue-card-title">${Util.esc(i.title)}</div>
+          <div class="issue-card-desc">${Util.esc(i.description)}</div>
+          <div class="issue-card-footer">${Util.statusBadge(i.status)}<span class="issue-meta">👥 ${i.reportCount}</span></div>
+          <div class="issue-meta" style="margin-top:8px">📍 ${Util.esc(i.location)}</div>
+          <div class="issue-meta" style="margin-top:4px">📅 ${Util.esc(i.date)}</div>
+        </div>
+      </div>`);
+  });
+  feedPage++;
+  document.getElementById('loadMoreBtn').style.display = feedPage * 6 >= feedData.length ? 'none' : '';
+}
+
+// ---------- Boot + live updates ----------
+MapView.init('map', { canConfirm: !isGuest });
+buildFilters(); buildTypeOptions(); buildMyFilters(); renderMyReports();
+['issueType','issueLocation'].forEach(id=>document.getElementById(id).addEventListener(id==='issueType'?'change':'input',()=>{ departmentTouched=false; buildDepartmentOptions(); }));
+['issueTitle','issueDesc'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{if(!departmentTouched)buildDepartmentOptions();}));
+document.getElementById('issueDepartment').addEventListener('change',()=>{departmentTouched=true;});
+const chatHistory = [];
+let reportDraftActive = false;
+function toggleChat(){const p=document.getElementById('wwChatPanel');p.hidden=!p.hidden;if(!p.hidden)document.getElementById('wwChatInput').focus();}
+function chatMessage(text,who){const box=document.getElementById('wwChatMessages'),el=document.createElement('div');el.className='ww-chat-bubble '+(who==='user'?'user':'');el.textContent=text;box.appendChild(el);box.scrollTop=box.scrollHeight;return el;}
+function isReportDraftRequest(text){
+ if(/\bhow\b[\s\S]{0,40}\breport\b/i.test(text))return false;
+ return /\b(?:start|generate|create|draft|prepare|write)\b[\s\S]{0,40}\b(?:report|issue|incident)\b/i.test(text)
+  || /\b(?:i want|i need|please)\s+(?:to\s+)?(?:report|file|create|draft)\b/i.test(text)
+  || /^\s*(?:report|file)\s+(?:this|an?|the)?\s*[\w-]+/i.test(text);
+}
+function findAssistantIssueContext(question){
+ if(!/\b(?:ISS[-\s]?\d+|issues?|reports?|incidents?|cases?|under verification|verified|resolved)\b/i.test(question))return [];
+ const all=DATA.getAll(),idMatch=question.match(/\bISS[-\s]?\d+\b/i),numberMatch=question.match(/\bissue\s+#?(\d+)\b/i);
+ if(idMatch){const wanted=idMatch[0].replace(/[^a-z0-9]/gi,'').toUpperCase();const found=all.find(issue=>String(issue.id).toUpperCase()===wanted);return found?[assistantIssueRecord(found)]:[];}
+ if(numberMatch){const wanted=Number(numberMatch[1]);const found=all.find(issue=>Number(String(issue.id).replace(/\D/g,''))===wanted);if(found)return[assistantIssueRecord(found)];}
+ const normalize=value=>String(value||'').replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+ const stopWords=new Set(['all','an','and','are','details','did','do','does','for','from','give','has','have','in','is','it','me','my','of','on','show','tell','the','this','to','was','were','what','when','where','which','who','with','about','issue','issues','report','reports','incident','incidents','case','cases','status','current','latest']);
+ const terms=normalize(question).split(/\s+/).filter(term=>term.length>2&&!stopWords.has(term));
+ const statusQuestion=normalize(question);
+ const scoreIssue=issue=>{
+  const fields=[
+   [normalize(issue.id),6],
+   [normalize(issue.title),5],
+   [normalize(issue.location),4],
+   [normalize(issue.type+' '+i18n.t(issue.type)),4],
+   [normalize(issue.department),2],
+   [normalize(issue.description),1],
+   [normalize(issue.status==='reviewing'?'under verification':issue.status),3]
+  ];
+  let score=0;
+  terms.forEach(term=>{const weights=fields.filter(([value])=>value.includes(term)).map(([,weight])=>weight);if(weights.length)score+=Math.max(...weights);});
+  if(/\b(?:under verification|reviewing|pending)\b/.test(statusQuestion)&&issue.status==='reviewing')score+=5;
+  if(/\bverified\b/.test(statusQuestion)&&issue.status==='verified')score+=5;
+  if(/\bresolved\b/.test(statusQuestion)&&issue.status==='resolved')score+=5;
+  return score;
+ };
+ let ranked=all.map(issue=>({issue,score:scoreIssue(issue)})).filter(item=>item.score>0);
+ if(!ranked.length&&/\b(?:all|every|list)\b/.test(statusQuestion))ranked=all.map(issue=>({issue,score:0}));
+ ranked.sort((a,b)=>b.score-a.score||String(b.issue.date||'').localeCompare(String(a.issue.date||'')));
+ return ranked.slice(0,8).map(item=>assistantIssueRecord(item.issue));
+}
+function assistantIssueRecord(issue){
+ const statuses={reviewing:'Under Verification',verified:'Verified',fake:'Fake/Rejected',resolved:'Resolved'};
+ return{id:String(issue.id||''),title:String(issue.title||''),type:String(issue.type||'other'),description:String(issue.description||''),location:String(issue.location||''),department:String(issue.department||''),status:statuses[issue.status]||String(issue.status||'Unknown'),date:String(issue.date||''),severity:Number.isInteger(issue.severity)&&issue.severity>=1&&issue.severity<=5?issue.severity:3,reportCount:Number.isInteger(issue.reportCount)&&issue.reportCount>=0?issue.reportCount:0};
+}
+function appendReportDraftButton(bubble,draft){
+ const button=document.createElement('button');button.type='button';button.className='btn btn-sm btn-primary';button.textContent='Review draft in Report Issue';button.addEventListener('click',()=>useAssistantReportDraft(draft));bubble.appendChild(document.createElement('br'));bubble.appendChild(button);
+}
+function useAssistantReportDraft(draft){
+ if(isGuest){chatMessage('Please sign in as a user to use this draft in Report Issue. You can still review the draft in this chat.','bot');return;}
+ if(!draft||!TYPE_ORDER.includes(draft.type)||!Number.isInteger(draft.severity)||draft.severity<1||draft.severity>5){chatMessage('This draft could not be applied safely. Please try generating it again.','bot');return;}
+ resetReport();switchTab('report');reportDraftActive=false;
+ document.getElementById('issueType').value=draft.type;
+ document.getElementById('issueTitle').value=draft.title;
+ document.getElementById('issueDesc').value=draft.description;
+ document.getElementById('issueLocation').value=draft.location;
+ const severity=document.querySelector(`input[name="severity"][value="${draft.severity}"]`);if(severity)severity.checked=true;
+ departmentTouched=false;buildDepartmentOptions();
+ chatMessage('Draft copied to Report Issue. Review the details, confirm the map location, add any evidence you want, then submit it yourself.','bot');
+}
+async function sendChat(e){
+ e.preventDefault();
+ const form=e.currentTarget,input=document.getElementById('wwChatInput'),q=input.value.trim();
+ if(!q||form.getAttribute('aria-busy')==='true')return;
+ chatMessage(q,'user');input.value='';
+ if(reportDraftActive&&/^(cancel|stop|never mind|forget the draft)\b/i.test(q)){
+  reportDraftActive=false;const answer='Okay, I stopped the report draft. Ask me anything else.';chatMessage(answer,'bot');chatHistory.push({role:'user',content:q},{role:'assistant',content:answer});if(chatHistory.length>12)chatHistory.splice(0,chatHistory.length-12);return;
+ }
+ if(isReportDraftRequest(q))reportDraftActive=true;
+ const task=reportDraftActive?'draft_report':'chat';
+ const issueContext=task==='chat'?findAssistantIssueContext(q):[];
+ chatHistory.push({role:'user',content:q});
+ const answerBubble=chatMessage('Thinking…','bot'),submit=form.querySelector('button[type="submit"]');
+ form.setAttribute('aria-busy','true');input.disabled=true;submit.disabled=true;
+ try{
+  const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatHistory.slice(-12),task,issueContext})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||'The AI service could not answer right now. Please try again.');
+  if(typeof result.answer!=='string'||!result.answer.trim())throw new Error('The AI service returned an empty answer. Please try again.');
+  const answer=result.answer.trim();
+  answerBubble.textContent=answer;
+  if(result.reportDraft)appendReportDraftButton(answerBubble,result.reportDraft);
+  chatHistory.push({role:'assistant',content:answer});
+  if(chatHistory.length>12)chatHistory.splice(0,chatHistory.length-12);
+ }catch(error){
+  answerBubble.textContent=error.message||'The AI service could not answer right now. Please try again.';
+ }finally{
+  form.removeAttribute('aria-busy');input.disabled=false;submit.disabled=false;input.focus();
+ }
+}
+// Admin verifies / resolves in another tab -> everything here updates instantly
+DATA.subscribe(() => {
+  renderMyReports();
+  const active = document.querySelector('.tab-content.active')?.id;
+  if (active === 'tab-feed') renderFeed(true);
+});
+window.addEventListener('ww:lang', () => {
+  buildFilters(); buildTypeOptions(); buildMyFilters(); renderMyReports();
+  if (document.querySelector('.tab-content.active')?.id === 'tab-feed') renderFeed(true);
+});
+</script>
+</body>
+</html>

@@ -25,7 +25,10 @@
 - Severity rating (1–5 stars)
 - Category- and location-based department suggestions, editable by reporters and administrators
 - Illustrative, attributed category-image previews; reporter-uploaded evidence remains separate
-- AI assistant for general questions, matching issue lookups, and WorldWatch website help
+- AI assistant for general questions, category-filtered issue lists across all supported types, and WorldWatch website help
+- Retrieval-augmented answers use relevant sections from the project guide and visible app pages to answer application questions
+- Practical, general response and future-prevention guidance for issue categories; reported resolution details are included when available
+- Local help mode keeps issue lookups, app guidance, report drafts, and safety precautions usable when the AI provider is unavailable
 - Report drafts prepared from conversation, then reviewed and submitted by the user
 - Local image quality screening for resolution, lighting, and contrast; an administrator must still verify the incident
 
@@ -57,7 +60,7 @@
 | Medical | MdAbeerHussain | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) · [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Mugda_Medical_College_Hospital_Building.jpg) |
 | Other | Pinakpani | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Road_and_streets_in_Visakhapatnam_city,_Andhra_Pradesh_06.jpg) |
 
-> The assistant uses the AI provider configured by the server. Its answers may be inaccurate; it does not have live web or weather access or contact authorities. Matching issue summaries may be sent to the configured provider. Generated reports are only drafts until the user reviews and submits them. Image screening evaluates basic quality only; it does not identify or authenticate incident content.
+> The assistant uses the AI provider configured by the server when available; without it, local help still supports report lookups, application guidance, report drafts, and category-based safety precautions. AI answers may be inaccurate; recommendations are general guidance, not official instructions, and it does not have live web or weather access or contact authorities. Relevant application documentation and matching issue summaries may be sent to the configured provider. Generated reports are only drafts until the user reviews and submits them. Image screening evaluates basic quality only; it does not identify or authenticate incident content.
 
 ### 📊 Data Analytics
 - Total issues, verified, under review, resolved, fake — stat cards
@@ -98,7 +101,7 @@ Full UI translation in **9 languages**:
    python server.py
    ```
    `OPENAI_API_KEY` is also accepted as an alternative environment variable. Optional settings: `AI_BASE_URL` (defaults to `https://api.openai.com/v1`), `AI_MODEL` (defaults to `gpt-4o-mini`), `PORT` (defaults to `8001`), and `HOST` (defaults to `127.0.0.1`). The server also supports local OpenAI-compatible services such as Ollama; set `AI_BASE_URL` and `AI_MODEL` to match your local service. No API key is sent to the browser.
-3. Open `http://127.0.0.1:8001/index.html`, watch or skip the tutorial, then sign in or continue as guest. Run `python server.py` rather than `python -m http.server`; the AI endpoint and media assets are served by this server.
+3. Open `http://127.0.0.1:8001/index.html`, watch or skip the tutorial, then sign in or continue as guest. Run `python server.py` rather than `python -m http.server`; the AI endpoint and media assets are served by this server. If no provider key is configured or the provider is offline, the assistant switches to local help for issue lookups, app guidance, report drafts, and prevention/precaution advice.
 4. Use the Map/Satellite buttons, zoom controls, compass, fullscreen, and location controls. Issue markers show their status and report count; click a marker or region circle for details.
 
 > The server binds to your own computer by default. Do not expose it directly to the public internet without adding server-side authentication and rate limiting; the demo login is client-side only.

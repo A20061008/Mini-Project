@@ -331,7 +331,7 @@ const SAMPLE_ISSUES = [
 
 const ISSUE_PREVIEWS = {
   flood: {
-    src: "/assets/issue-previews/flood.jpg",
+    src: "assets/issue-previews/flood.jpg",
     creator: "Podstawko",
     title: "Red Dragon sculpture during River Lee flooding",
     source: "https://commons.wikimedia.org/wiki/File:Red_Dragon_scuplture_during_River_Lee_flooding,_October_2023.jpg",
@@ -339,7 +339,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
   },
   naturalDisaster: {
-    src: "/assets/issue-previews/natural-disaster.jpg",
+    src: "assets/issue-previews/natural-disaster.jpg",
     creator: "C messier",
     title: "Earthquake damage in Choumeri",
     source: "https://commons.wikimedia.org/wiki/File:%CE%9A%CE%B1%CF%84%CE%B1%CF%83%CF%84%CF%81%CE%BF%CF%86%CE%AD%CF%82_%CE%B1%CF%80%CF%8C_%CF%83%CE%B5%CE%B9%CF%83%CE%BC%CF%8C_28-9-2021_%CE%A7%CE%BF%CF%85%CE%BC%CE%AD%CF%81%CE%B9_0457.jpg",
@@ -347,7 +347,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
   },
   fire: {
-    src: "/assets/issue-previews/fire.jpg",
+    src: "assets/issue-previews/fire.jpg",
     creator: "StevenTerblanche",
     title: "Firefighter at work",
     source: "https://commons.wikimedia.org/wiki/File:Firefighter,_Ashton_Bay,_March_2017.jpg",
@@ -355,7 +355,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
   },
   crime: {
-    src: "/assets/issue-previews/crime.jpg",
+    src: "assets/issue-previews/crime.jpg",
     creator: "ThibautRe",
     title: "Swedish police car with lights on",
     source: "https://commons.wikimedia.org/wiki/File:Swedish_police_car_with_lights_on.jpg",
@@ -363,7 +363,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/"
   },
   roadAccident: {
-    src: "/assets/issue-previews/road-accident.jpg",
+    src: "assets/issue-previews/road-accident.jpg",
     creator: "Shuets Udono",
     title: "Japanese car accident",
     source: "https://commons.wikimedia.org/wiki/File:Japanese_car_accident.jpg",
@@ -371,7 +371,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0/"
   },
   infrastructure: {
-    src: "/assets/issue-previews/infrastructure.jpg",
+    src: "assets/issue-previews/infrastructure.jpg",
     creator: "Irving Underhill",
     title: "Manhattan Bridge construction, 1909",
     source: "https://commons.wikimedia.org/wiki/File:Manhattan_Bridge_Construction_1909.jpg",
@@ -379,7 +379,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://commons.wikimedia.org/wiki/Commons:Licensing#Public_domain"
   },
   pollution: {
-    src: "/assets/issue-previews/pollution.jpg",
+    src: "assets/issue-previews/pollution.jpg",
     creator: "Radek Kołakowski",
     title: "Smog in Warsaw",
     source: "https://commons.wikimedia.org/wiki/File:Air_pollution_banner_Smog_in_Warsaw.jpg",
@@ -387,7 +387,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://creativecommons.org/licenses/by/2.0/"
   },
   medical: {
-    src: "/assets/issue-previews/medical.jpg",
+    src: "assets/issue-previews/medical.jpg",
     creator: "MdAbeerHussain",
     title: "Mugda Medical College Hospital",
     source: "https://commons.wikimedia.org/wiki/File:Mugda_Medical_College_Hospital_Building.jpg",
@@ -395,7 +395,7 @@ const ISSUE_PREVIEWS = {
     licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/"
   },
   other: {
-    src: "/assets/issue-previews/other.jpg",
+    src: "assets/issue-previews/other.jpg",
     creator: "Pinakpani",
     title: "Roads and streets in Visakhapatnam",
     source: "https://commons.wikimedia.org/wiki/File:Road_and_streets_in_Visakhapatnam_city,_Andhra_Pradesh_06.jpg",

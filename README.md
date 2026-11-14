@@ -28,6 +28,10 @@
 - AI assistant for general questions, category-filtered issue lists across all supported types, and WorldWatch website help
 - Retrieval-augmented answers use relevant sections from the project guide and visible app pages to answer application questions
 - Practical, general response and future-prevention guidance for issue categories; reported resolution details are included when available
+- “AI Solutions and Preventions” dashboard section with category filters, immediate response and prevention tips, related local reports, and unverified report-severity attention signals
+- Safety guidance is not a forecast: the app has no connected live weather, sensor, hospital, police, or traffic feeds and cannot predict earthquakes, tornado paths, waves, or future incidents; follow official local alerts and emergency services
+- AI Solutions includes charts from locally stored issue history, a complete issue-and-prevention PDF, and a separate seven-day issue-volume trend PDF. Projections use a simple linear trend over the last 30 days, exclude rejected reports, and allocate category estimates by recent historical share; sparse data may make estimates unavailable or unreliable.
+- These statistical projections describe issue-report volume only. They are not AI-generated hazard forecasts, probabilities, incident predictions, or official warnings, and must not be used for emergency decisions.
 - Local help mode keeps issue lookups, app guidance, report drafts, and safety precautions usable when the AI provider is unavailable
 - Report drafts prepared from conversation, then reviewed and submitted by the user
 - Local image quality screening for resolution, lighting, and contrast; an administrator must still verify the incident

@@ -37,6 +37,9 @@
       <a class="nav-item" data-tab="analytics" href="#" onclick="switchTab('analytics');return false">
         <i class="fa fa-chart-bar"></i> <span data-i18n="analytics">Analytics</span>
       </a>
+      <a class="nav-item" data-tab="solutions" href="#" onclick="switchTab('solutions');return false">
+        <i class="fa fa-shield-heart"></i> <span data-i18n="aiSolutions">AI Solutions and Preventions</span>
+      </a>
     </nav>
     <div class="sidebar-footer">
       <div class="stat-card" style="margin:0;padding:12px;background:rgba(255,255,255,0.08);border:none">
@@ -134,6 +137,41 @@
         <div id="typePanel"></div>
       </div>
 
+      <!-- TAB: AI SOLUTIONS AND PREVENTIONS -->
+      <div class="tab-content" id="tab-solutions">
+        <h2 class="solutions-title"><i class="fa fa-shield-heart"></i> <span data-i18n="aiSolutions">AI Solutions and Preventions</span></h2>
+        <p class="solutions-intro">Practical response steps, prevention tips, and report-based attention signals for each issue category.</p>
+        <div class="solutions-warning" role="note">
+          <strong>Safety and forecast limits:</strong> Guidance is general, and report severity is user-reported and unverified. This app has no live weather, sensor, hospital, police, or traffic feeds and cannot predict earthquakes, tornado paths, waves, or future incidents. Follow official local alerts. For immediate danger in India call 112; elsewhere call your local emergency number.
+        </div>
+        <div class="solutions-filter">
+          <label for="solutionTypeFilter">Show guidance for</label>
+          <select class="form-control" id="solutionTypeFilter"></select>
+        </div>
+        <section class="solution-analysis" aria-labelledby="solutionAnalysisTitle">
+          <div class="solution-analysis-heading">
+            <div>
+              <h3 id="solutionAnalysisTitle"><i class="fa fa-chart-line"></i> AI Assistant: Issue Analysis and Reports</h3>
+              <p>Analyzes locally stored issue history, displays charts, and creates two downloadable PDF reports.</p>
+            </div>
+            <div class="solutions-report-toolbar">
+              <button class="btn btn-outline" type="button" onclick="AISolutions.refresh()"><i class="fa fa-rotate"></i> Refresh analysis</button>
+              <button class="btn btn-primary" type="button" onclick="AISolutions.downloadIssueReport()"><i class="fa fa-file-pdf"></i> Full issue and prevention PDF</button>
+              <button class="btn btn-primary" type="button" onclick="AISolutions.downloadForecastReport()"><i class="fa fa-chart-column"></i> 7-day trend PDF</button>
+            </div>
+          </div>
+          <p class="solution-analysis-summary" id="solutionAnalysisSummary" role="status" aria-live="polite"></p>
+          <div class="charts-grid solutions-analysis-charts">
+            <div class="chart-card"><h4>Issue records by category</h4><canvas id="solutionCategoryChart"></canvas></div>
+            <div class="chart-card"><h4>Issue status distribution</h4><canvas id="solutionStatusChart"></canvas></div>
+            <div class="chart-card"><h4>Daily history and 7-day trend projection</h4><canvas id="solutionTrendChart"></canvas></div>
+            <div class="chart-card"><h4>Projected issue-record volume by category</h4><canvas id="solutionForecastChart"></canvas></div>
+          </div>
+          <p class="solution-analysis-note">The aggregate projection is a straight-line fit to the last 30 days of local, non-rejected issue records; category estimates use each category's recent share. Sparse data may make estimates unreliable or unavailable. These are not probabilities, hazard forecasts, or official warnings.</p>
+        </section>
+        <div class="solutions-grid" id="solutionCards"></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -172,6 +210,7 @@
 <div class="ww-chat" id="wwChat"><button class="ww-chat-toggle" type="button" onclick="toggleChat()" aria-label="Open WorldWatch AI assistant">💬 <span>AI Assistant</span></button><section class="ww-chat-panel" id="wwChatPanel" aria-label="WorldWatch AI assistant" hidden><header><strong>WorldWatch AI Assistant</strong><button type="button" onclick="toggleChat()" aria-label="Close">×</button></header><div class="ww-chat-messages" id="wwChatMessages" aria-live="polite"><div class="ww-chat-bubble">Hi! Ask me about reports or the app. Use the sections below to prepare a report draft or get prevention and precaution guidance.</div></div><form class="ww-chat-form" onsubmit="sendChat(event)"><input id="wwChatInput" aria-label="Ask a question" placeholder="Ask me anything…" maxlength="4000"><button type="submit">Send</button></form><small>AI answers may be inaccurate and are not live forecasts. If AI is unavailable, local help is used. Civic guidance is preliminary; emergencies in India: call 112. Reports are not sent automatically. Matching issue details may be sent to the configured AI provider. Generated reports remain drafts until you review and submit them.</small></section></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
 <script src="translations.js"></script>
 <script src="app.js"></script>
@@ -185,7 +224,7 @@ if (session) {
 }
 const TYPE_ORDER = ['naturalDisaster','flood','fire','roadAccident','crime','infrastructure','pollution','medical','other'];
 const ADMIN_DEPARTMENTS = ['State Police','Fire and Emergency Services','Traffic Police','Public Works Department / Municipal Authority','State Pollution Control Board','Health Department / Emergency Medical Services','State Disaster Management Authority','India Meteorological Department (IMD)','District Administration / Manual assignment'];
-const TITLES = { overview:'overview', manage:'issueManagement', departments:'departments', analytics:'analytics' };
+const TITLES = { overview:'overview', manage:'issueManagement', departments:'departments', analytics:'analytics', solutions:'aiSolutions' };
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -199,6 +238,7 @@ function switchTab(tab) {
   if (tab === 'manage') renderTable();
   if (tab === 'departments') renderDepartments();
   if (tab === 'analytics') Analytics.init();
+  if (tab === 'solutions') AISolutions.init();
 }
 
 // ---------- Verification actions (visible to users instantly on their map) ----------

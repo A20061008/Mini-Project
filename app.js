@@ -773,6 +773,433 @@ const MapUtils = {
   }
 };
 
+const ISSUE_SAFETY_GUIDANCE = {
+  naturalDisaster: {
+    response: "Follow official disaster alerts, evacuate when instructed, and move to a designated safe area. During an earthquake, Drop, Cover, and Hold On; after shaking stops, check for hazards and follow official aftershock guidance.",
+    prevention: "Keep an emergency kit, family contact plan, and evacuation routes. Secure heavy furniture and follow local building-safety and disaster-preparedness guidance.",
+    monitor: "Monitor official earthquake, severe-weather, and disaster-management alerts. Earthquake timing and magnitude and tornado direction cannot be reliably predicted by this app."
+  },
+  flood: {
+    response: "Move away from rising water and follow evacuation notices. Never walk, swim, or drive through floodwater. At the coast, leave the shore if officials issue a high-wave, storm-surge, or tsunami warning.",
+    prevention: "Know flood-prone routes, prepare to evacuate, protect essential supplies from water, and keep drains clear only when it is safe to do so.",
+    monitor: "Check official rainfall, river, coastal-wave, storm-surge, and cyclone warnings. This app has no live weather or wave feed and cannot predict flooding."
+  },
+  fire: {
+    response: "Evacuate using a safe exit, call emergency services, and stay outside. Do not re-enter or attempt to fight a spreading or dangerous fire.",
+    prevention: "Maintain smoke alarms and electrical equipment, store fuels safely, keep exits clear, and practice an evacuation plan.",
+    monitor: "Watch for smoke, heat, alarms, or official evacuation orders. Reported issues do not confirm a current fire or its spread."
+  },
+  roadAccident: {
+    response: "Keep yourself out of traffic, call emergency services, and give the location. Do not move seriously injured people unless there is immediate danger.",
+    prevention: "Obey posted speed limits and road signs, wear seat belts or helmets, avoid phone use, alcohol, and fatigue while driving, and maintain vehicles. Speed limits vary by road and jurisdiction.",
+    monitor: "Watch traffic and weather conditions and follow official road-closure notices. This app does not have live traffic or collision-prediction data."
+  },
+  crime: {
+    response: "Move to a secure place and contact local police or emergency services immediately. In India, call 112 for emergencies. Do not confront or pursue suspects.",
+    prevention: "Stay aware of surroundings, use secure access and lighting, share travel plans with trusted people, and report suspicious hazards through appropriate official channels.",
+    monitor: "Use official police or emergency notices for current threats. Community reports are unverified and do not establish that a crime occurred."
+  },
+  infrastructure: {
+    response: "Keep clear of unstable structures, damaged roads, exposed wiring, and leaking utilities. Warn others only if safe and contact the responsible authority or utility.",
+    prevention: "Arrange qualified inspections and timely renovation, maintain drainage and utilities, and follow engineering and building codes. Do not enter or repair unsafe structures yourself.",
+    monitor: "Watch for new cracks, leaning, subsidence, corrosion, unusual sounds, leaks, or exposed conductors. A professional inspection is needed to assess structural safety."
+  },
+  pollution: {
+    response: "Reduce exposure and move away from visible smoke, fumes, or spills if safe. Follow health advisories and contact the relevant environmental or emergency authority.",
+    prevention: "Maintain vehicle engines and emissions controls, follow local inspection and emission rules, and ensure factories use permitted, maintained pollution-control systems. Emission limits depend on local regulations; this app cannot measure smoke or air quality.",
+    monitor: "Check official air-quality and public-health advisories. A well-fitted particulate mask may reduce some particle exposure, but it does not protect against many gases or chemical fumes."
+  },
+  medical: {
+    response: "For difficulty breathing, chest pain, sudden weakness, severe bleeding, unconsciousness, or another life-threatening symptom, contact emergency medical services immediately. Do not rely on this app for diagnosis.",
+    prevention: "Follow qualified medical advice, keep necessary medicines and emergency contacts available, use safe food and water practices, and seek care early when symptoms worsen.",
+    monitor: "Use public-health guidance and professional assessment. This app has no live hospital directory, ambulance dispatch, or patient monitoring; emergency services can direct you to nearby care."
+  },
+  other: {
+    response: "Move away from immediate danger, contact the appropriate local authority, and document the issue only when it is safe.",
+    prevention: "Use precautions appropriate to the hazard, maintain equipment and surroundings, and report developing problems early.",
+    monitor: "Use official local advisories for current conditions. The issue feed is not a live sensor or emergency-warning service."
+  }
+};
+
+const AISolutions = {
+  initialized: false,
+  charts: {},
+  TYPES: Object.keys(ISSUE_SAFETY_GUIDANCE),
+  COLORS: ["#1a73e8", "#4caf50", "#ff5722", "#9c27b0", "#ff9800", "#00bcd4", "#f44336", "#2196f3", "#607d8b"],
+
+  init() {
+    const filter = document.getElementById("solutionTypeFilter");
+    if (!filter) return;
+    if (!this.initialized) {
+      this.updateFilterOptions();
+      filter.addEventListener("change", () => this.render());
+      DATA.subscribe(() => this.refresh());
+      window.addEventListener("ww:lang", () => { this.updateFilterOptions(); this.render(); });
+      this.initialized = true;
+    }
+    this.render();
+  },
+
+  updateFilterOptions() {
+    const filter = document.getElementById("solutionTypeFilter");
+    if (!filter) return;
+    const selected = filter.value || "all";
+    filter.innerHTML = `<option value="all">${Util.esc(i18n.t("filterAll"))}</option>` +
+      Object.keys(ISSUE_SAFETY_GUIDANCE).map(type =>
+        `<option value="${Util.esc(type)}">${Util.esc(MapUtils.getTypeIcon(type))} ${Util.esc(i18n.t(type))}</option>`
+      ).join("");
+    filter.value = selected;
+  },
+
+  analyze(issues = DATA.getAll(), now = new Date()) {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const historyDates = [];
+    for (let offset = 29; offset >= 0; offset--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - offset);
+      historyDates.push(Util.localDate(date));
+    }
+    const historyIndex = new Map(historyDates.map((date, index) => [date, index]));
+    const issueList = Array.isArray(issues) ? issues.filter(issue => issue && typeof issue === "object") : [];
+    const typeCounts = Object.fromEntries(this.TYPES.map(type => [type, 0]));
+    const statusCounts = { verified: 0, reviewing: 0, resolved: 0, fake: 0 };
+    const severityCounts = [0, 0, 0, 0, 0];
+    issueList.forEach(issue => {
+      if (Object.prototype.hasOwnProperty.call(typeCounts, issue.type)) typeCounts[issue.type]++;
+      if (Object.prototype.hasOwnProperty.call(statusCounts, issue.status)) statusCounts[issue.status]++;
+      const severity = Number(issue.severity);
+      if (Number.isInteger(severity) && severity >= 1 && severity <= 5) severityCounts[severity - 1]++;
+    });
+
+    const dailyCounts = historyDates.map(() => 0);
+    const recentTypeCounts = Object.fromEntries(this.TYPES.map(type => [type, 0]));
+    issueList.forEach(issue => {
+      if (issue.status === "fake" || !Object.prototype.hasOwnProperty.call(recentTypeCounts, issue.type)) return;
+      if (typeof issue.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(issue.date)) return;
+      const index = historyIndex.get(issue.date);
+      if (index === undefined) return;
+      dailyCounts[index]++;
+      recentTypeCounts[issue.type]++;
+    });
+
+    const observedDays = dailyCounts.filter(count => count > 0).length;
+    let trend = null;
+    if (observedDays >= 3) {
+      const count = dailyCounts.length;
+      const meanX = (count - 1) / 2;
+      const meanY = dailyCounts.reduce((sum, value) => sum + value, 0) / count;
+      let numerator = 0;
+      let denominator = 0;
+      dailyCounts.forEach((value, index) => {
+        numerator += (index - meanX) * (value - meanY);
+        denominator += (index - meanX) ** 2;
+      });
+      const slope = denominator ? numerator / denominator : 0;
+      const intercept = meanY - slope * meanX;
+      const futureDates = [];
+      const projectedDaily = [];
+      for (let day = 1; day <= 7; day++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + day);
+        futureDates.push(Util.localDate(date));
+        projectedDaily.push(Math.max(0, intercept + slope * (count - 1 + day)));
+      }
+      trend = {
+        slope,
+        direction: slope > 0.02 ? "rising" : slope < -0.02 ? "falling" : "stable",
+        futureDates,
+        projectedDaily,
+        projectedTotal: projectedDaily.reduce((sum, value) => sum + value, 0)
+      };
+    }
+
+    const recentTotal = Object.values(recentTypeCounts).reduce((sum, value) => sum + value, 0);
+    const projectedByType = Object.fromEntries(this.TYPES.map(type => [
+      type,
+      trend && recentTypeCounts[type] > 0 && recentTotal
+        ? trend.projectedTotal * recentTypeCounts[type] / recentTotal
+        : null
+    ]));
+    const active = issueList.filter(issue => issue.status !== "resolved" && issue.status !== "fake");
+    return {
+      issues: issueList,
+      today: Util.localDate(today),
+      historyDates,
+      dailyCounts,
+      observedDays,
+      typeCounts,
+      statusCounts,
+      severityCounts,
+      recentTypeCounts,
+      recentTotal,
+      trend,
+      projectedByType,
+      activeCount: active.length,
+      highSeverityCount: active.filter(issue => Number(issue.severity) >= 4).length
+    };
+  },
+
+  render() {
+    const grid = document.getElementById("solutionCards");
+    const filter = document.getElementById("solutionTypeFilter");
+    if (!filter) return;
+    const issues = DATA.getAll();
+    const types = Object.keys(ISSUE_SAFETY_GUIDANCE).filter(type =>
+      filter.value === "all" || filter.value === type
+    );
+    if (grid) grid.innerHTML = types.map(type => {
+      const guidance = ISSUE_SAFETY_GUIDANCE[type];
+      const reports = issues.filter(issue => issue.type === type);
+      const active = reports.filter(issue => issue.status !== "resolved" && issue.status !== "fake");
+      const severe = active.filter(issue => Number(issue.severity) >= 4);
+      const reportSignal = active.length
+        ? `${active.length} active report${active.length === 1 ? "" : "s"}; ${severe.length} marked severity 4–5 by reporters. These ratings are unverified and are not a forecast.`
+        : "No active reports in this category in the app data. This does not mean the area is safe.";
+      const recentReports = reports.slice().sort((a, b) =>
+        Number(b.severity || 0) - Number(a.severity || 0) ||
+        String(b.date || "").localeCompare(String(a.date || ""))
+      ).slice(0, 3);
+      const reportList = recentReports.length
+        ? `<ul class="solution-reports">${recentReports.map(issue =>
+            `<li><strong>${Util.esc(issue.title)}</strong><span>${Util.esc(issue.location || "Location not listed")} · ${Util.esc(i18n.t(Util.statusKey(issue.status)))}</span></li>`
+          ).join("")}</ul>`
+        : `<p class="solution-no-reports">No reports in this category yet.</p>`;
+      return `
+        <article class="solution-card">
+          <header class="solution-card-header">
+            <span class="solution-icon" aria-hidden="true">${Util.esc(MapUtils.getTypeIcon(type))}</span>
+            <h3>${Util.esc(i18n.t(type))}</h3>
+          </header>
+          <p class="solution-signal">${Util.esc(reportSignal)}</p>
+          <section><h4>Immediate response</h4><p>${Util.esc(guidance.response)}</p></section>
+          <section><h4>Prevention</h4><p>${Util.esc(guidance.prevention)}</p></section>
+          <section><h4>What to monitor (not a prediction)</h4><p>${Util.esc(guidance.monitor)}</p></section>
+          <details class="solution-report-details">
+            <summary>Related local reports (${reports.length})</summary>
+            ${reportList}
+          </details>
+        </article>`;
+    }).join("");
+    this.renderAnalysis(issues);
+  },
+
+  refresh() {
+    this.render();
+  },
+
+  renderAnalysis(issues) {
+    const summary = document.getElementById("solutionAnalysisSummary");
+    if (!summary) return;
+    const analysis = this.analyze(issues);
+    const totals = analysis.trend
+      ? ` The local trend model projects about ${analysis.trend.projectedTotal.toFixed(1)} issue records over the next 7 days.`
+      : " There are not enough dated records across the last 30 days to calculate an overall projection.";
+    summary.textContent = `${analysis.issues.length} total issue records; ${analysis.activeCount} active, ${analysis.statusCounts.resolved} resolved, and ${analysis.highSeverityCount} active records marked severity 4 or 5. ${analysis.recentTotal} non-rejected records dated in the last 30 days.${totals}`;
+
+    if (typeof Chart !== "function") {
+      summary.textContent += " Charts are unavailable because the chart library did not load.";
+      return;
+    }
+    const t = i18n.t.bind(i18n);
+    const labels = this.TYPES.map(type => t(type));
+    const typeCounts = this.TYPES.map(type => analysis.typeCounts[type]);
+    this._chart("category", "solutionCategoryChart", {
+      type: "bar",
+      data: { labels, datasets: [{ label: "Issue records", data: typeCounts, backgroundColor: this.COLORS, borderRadius: 5 }] },
+      options: { animation: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false } } } }
+    });
+    this._chart("status", "solutionStatusChart", {
+      type: "doughnut",
+      data: {
+        labels: ["verified", "reviewing", "resolved", "fake"].map(key => t(Util.statusKey(key))),
+        datasets: [{ data: ["verified", "reviewing", "resolved", "fake"].map(key => analysis.statusCounts[key]), backgroundColor: ["#4caf50", "#ffc107", "#2196f3", "#f44336"], borderColor: "#fff", borderWidth: 2 }]
+      },
+      options: { animation: false, cutout: "55%", plugins: { legend: { position: "bottom" } } }
+    });
+    const trendLabels = analysis.historyDates.concat(analysis.trend ? analysis.trend.futureDates : []);
+    const historicalLine = analysis.dailyCounts.concat(analysis.trend ? analysis.trend.futureDates.map(() => null) : []);
+    const projectionLine = analysis.trend
+      ? analysis.dailyCounts.map((count, index) => index === analysis.dailyCounts.length - 1 ? count : null).concat(analysis.trend.projectedDaily)
+      : [];
+    this._chart("trend", "solutionTrendChart", {
+      type: "line",
+      data: {
+        labels: trendLabels.map(date => date.slice(5)),
+        datasets: [
+          { label: "Historical issue records", data: historicalLine, borderColor: "#1a73e8", backgroundColor: "#1a73e822", fill: true, tension: 0.25, pointRadius: 2 },
+          { label: "7-day trend projection", data: projectionLine, borderColor: "#e94560", borderDash: [6, 4], tension: 0.2, pointRadius: 2, spanGaps: true }
+        ]
+      },
+      options: { animation: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { position: "bottom" } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } } } }
+    });
+    this._chart("forecast", "solutionForecastChart", {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{ label: "Estimated issue records in next 7 days", data: this.TYPES.map(type => analysis.projectedByType[type]), backgroundColor: this.COLORS, borderRadius: 5 }]
+      },
+      options: { animation: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+    });
+  },
+
+  _chart(key, canvasId, config) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    if (this.charts[key]) this.charts[key].destroy();
+    this.charts[key] = new Chart(canvas.getContext("2d"), config);
+  },
+
+  _pdfConstructor() {
+    if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") {
+      Toast.show("PDF export is unavailable because the PDF library could not load. Check your internet connection and reload the page.", "error");
+      return null;
+    }
+    const chartIds = ["solutionCategoryChart", "solutionStatusChart", "solutionTrendChart", "solutionForecastChart"];
+    if (typeof Chart !== "function" || chartIds.some(id => {
+      const canvas = document.getElementById(id);
+      return !canvas || !canvas.width || !canvas.height;
+    })) {
+      Toast.show("PDF export needs the analysis charts to finish loading. Refresh the analysis and try again.", "error");
+      return null;
+    }
+    return window.jspdf.jsPDF;
+  },
+
+  _startPdf(title) {
+    const JsPDF = this._pdfConstructor();
+    if (!JsPDF) return null;
+    const pdf = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    pdf.setProperties({ title, subject: "WorldWatch issue analysis", creator: "WorldWatch" });
+    this._pdfY = 16;
+    this._pdfText(pdf, title, { size: 18, bold: true, gap: 4 });
+    this._pdfText(pdf, `Generated ${Util.localDate()}`, { size: 9, gap: 4 });
+    return pdf;
+  },
+
+  _pdfText(pdf, value, options = {}) {
+    const size = options.size || 10;
+    const width = pdf.internal.pageSize.getWidth() - 28;
+    const lineHeight = size * 0.48;
+    const lines = pdf.splitTextToSize(String(value || ""), width);
+    if (this._pdfY + lines.length * lineHeight > pdf.internal.pageSize.getHeight() - 17) {
+      pdf.addPage();
+      this._pdfY = 16;
+    }
+    pdf.setFont("helvetica", options.bold ? "bold" : "normal");
+    pdf.setFontSize(size);
+    pdf.text(lines, 14, this._pdfY);
+    this._pdfY += lines.length * lineHeight + (options.gap === undefined ? 2 : options.gap);
+  },
+
+  _pdfSection(pdf, heading) {
+    this._pdfText(pdf, heading, { size: 13, bold: true, gap: 3 });
+  },
+
+  _pdfChart(pdf, canvasId, heading) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas.width || !canvas.height) return;
+    if (this._pdfY + 94 > pdf.internal.pageSize.getHeight() - 17) {
+      pdf.addPage();
+      this._pdfY = 16;
+    }
+    this._pdfSection(pdf, heading);
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 14, this._pdfY, 182, 82);
+    this._pdfY += 87;
+  },
+
+  _finishPdf(pdf, filename) {
+    const pageCount = pdf.getNumberOfPages();
+    for (let page = 1; page <= pageCount; page++) {
+      pdf.setPage(page);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.setTextColor(110);
+      pdf.text(`WorldWatch | Local report data | Page ${page} of ${pageCount}`, 14, pdf.internal.pageSize.getHeight() - 8);
+    }
+    try {
+      pdf.save(filename);
+    } catch (error) {
+      Toast.show(`Could not save PDF: ${error.message || "browser download failed"}`, "error");
+      return;
+    }
+    Toast.show("PDF generated. Check your browser downloads.", "success");
+  },
+
+  downloadIssueReport() {
+    const pdf = this._startPdf("WorldWatch - Full Issue and Prevention Report");
+    if (!pdf) return;
+    const analysis = this.analyze(DATA.getAll());
+    const issues = analysis.issues.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    this._pdfText(pdf, "This report summarizes locally stored issue records and general safety guidance. Verification statuses reflect app records and are not independent confirmations.", { size: 10, gap: 5 });
+    this._pdfSection(pdf, "Executive summary");
+    this._pdfText(pdf, `Issue records: ${issues.length}; active: ${analysis.activeCount}; resolved: ${analysis.statusCounts.resolved}; rejected: ${analysis.statusCounts.fake}; active severity 4-5: ${analysis.highSeverityCount}.`, { gap: 4 });
+    this._pdfChart(pdf, "solutionCategoryChart", "Issue records by category");
+    this._pdfChart(pdf, "solutionStatusChart", "Issue status distribution");
+    this._pdfChart(pdf, "solutionTrendChart", "Recent history and exploratory trend");
+    this._pdfChart(pdf, "solutionForecastChart", "Exploratory category volume projection");
+    this._pdfSection(pdf, "Issue records and related guidance");
+    if (!issues.length) this._pdfText(pdf, "No issue records are currently available.", { gap: 4 });
+    issues.forEach((issue, index) => {
+      const type = Object.prototype.hasOwnProperty.call(ISSUE_SAFETY_GUIDANCE, issue.type) ? issue.type : "other";
+      const guidance = ISSUE_SAFETY_GUIDANCE[type];
+      this._pdfSection(pdf, `${index + 1}. ${issue.id || "Issue"} - ${issue.title || "Untitled issue"}`);
+      this._pdfText(pdf, `Category: ${i18n.t(type)} | Status: ${i18n.t(Util.statusKey(issue.status))} | Date: ${issue.date || "Not recorded"} | Location: ${issue.location || "Not recorded"}`);
+      this._pdfText(pdf, `Severity marked by reporter: ${issue.severity || "Not recorded"} / 5 | Issue report count: ${Number(issue.reportCount) || 1}`);
+      if (issue.description) this._pdfText(pdf, `Description: ${issue.description}`);
+      if (issue.resolutionMsg) this._pdfText(pdf, `Reported resolution: ${issue.resolutionMsg}`);
+      this._pdfText(pdf, `Immediate response: ${guidance.response}`);
+      this._pdfText(pdf, `Prevention: ${guidance.prevention}`);
+      this._pdfText(pdf, `What to monitor: ${guidance.monitor}`, { gap: 4 });
+    });
+    this._pdfSection(pdf, "Complete category guidance");
+    this.TYPES.forEach(type => {
+      const guidance = ISSUE_SAFETY_GUIDANCE[type];
+      this._pdfText(pdf, i18n.t(type), { size: 11, bold: true, gap: 2 });
+      this._pdfText(pdf, `Response: ${guidance.response}`);
+      this._pdfText(pdf, `Prevention: ${guidance.prevention}`);
+      this._pdfText(pdf, `Monitor: ${guidance.monitor}`, { gap: 4 });
+    });
+    this._pdfText(pdf, "Safety notice: this report is not an emergency dispatch or official instruction. Follow local emergency services and official alerts. These local records do not power live weather, medical, police, traffic, earthquake, or tornado forecasting.", { size: 9 });
+    this._finishPdf(pdf, `worldwatch-issues-and-prevention-${Util.localDate()}.pdf`);
+  },
+
+  downloadForecastReport() {
+    const pdf = this._startPdf("WorldWatch - 7-Day Issue Volume Trend Projection");
+    if (!pdf) return;
+    const analysis = this.analyze(DATA.getAll());
+    this._pdfText(pdf, "Exploratory statistical trend only. This estimates future issue-record volume from the last 30 days of local non-rejected records; it does not predict incidents, hazard severity, or probabilities.", { size: 10, gap: 5 });
+    this._pdfSection(pdf, "Method and data window");
+    this._pdfText(pdf, `History window: ${analysis.historyDates[0]} through ${analysis.today}. Records marked fake/rejected are excluded. The aggregate projection uses a straight-line fit to daily issue-record counts and extends it seven days. Category estimates allocate the aggregate projection using each category's observed share in that window; categories with no history have no estimate.`, { gap: 4 });
+    this._pdfText(pdf, `Non-rejected issue records in window: ${analysis.recentTotal}; days containing records: ${analysis.observedDays}.`);
+    if (analysis.trend) {
+      this._pdfText(pdf, `Estimated total issue records over the next seven days: ${analysis.trend.projectedTotal.toFixed(1)}. Historical direction across the window: ${analysis.trend.direction}. These estimates are uncalibrated and sensitive to sparse or changing data.`, { gap: 4 });
+    } else {
+      this._pdfText(pdf, "There are fewer than three days with dated records in the 30-day window, so the app will not calculate a trend projection.", { gap: 4 });
+    }
+    this._pdfChart(pdf, "solutionTrendChart", "Daily history and seven-day projection");
+    this._pdfChart(pdf, "solutionForecastChart", "Estimated seven-day volume by category");
+    this._pdfSection(pdf, "Category-by-category projection");
+    this.TYPES.forEach(type => {
+      const observed = analysis.recentTypeCounts[type];
+      const estimate = analysis.projectedByType[type];
+      const detail = estimate === null
+        ? `${observed} observed records; insufficient category history for an estimate.`
+        : `${observed} observed records; about ${estimate.toFixed(1)} projected records in seven days using historical category share.`;
+      this._pdfText(pdf, `${i18n.t(type)}: ${detail}`);
+    });
+    this._pdfSection(pdf, "Daily aggregate trend");
+    if (analysis.trend) {
+      analysis.trend.futureDates.forEach((date, index) => {
+        this._pdfText(pdf, `${date}: about ${analysis.trend.projectedDaily[index].toFixed(2)} issue records`);
+      });
+    } else {
+      this._pdfText(pdf, "Not available because the data window contains too few days with records.");
+    }
+    this._pdfText(pdf, "Interpretation limits: this projection extrapolates only historical reporting volume. It has no weather, sensor, population, or official alert inputs; it is not a forecast of fires, floods, crime, accidents, disease, infrastructure failure, or natural disasters. Do not use it to make emergency decisions.", { size: 9, gap: 4 });
+    this._finishPdf(pdf, `worldwatch-7-day-trend-${Util.localDate()}.pdf`);
+  }
+};
+
 const BasemapControl = {
   onAdd(map) {
     this.map = map;

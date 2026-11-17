@@ -413,7 +413,7 @@
   <div class="login-header">
     <div class="logo-circle">🌍</div>
     <div class="login-title">WorldWatch</div>
-    <div class="tagline-rotator" id="taglineRotator">Global Issue Tracker</div>
+    <div class="tagline-rotator" id="taglineRotator" data-i18n="tagline">Global Issue Tracker</div>
   </div>
 
   <!-- Language Selector -->
@@ -434,24 +434,24 @@
   <section class="login-tutorial" aria-labelledby="tutorialTitle">
     <div class="tutorial-heading">
       <div>
-        <h2 id="tutorialTitle">Quick demo: how to use WorldWatch</h2>
-        <p>Learn how to explore issues, submit a report, track progress, and route work as an administrator.</p>
+        <h2 id="tutorialTitle" data-i18n="tutorialTitle">Quick demo: how to use WorldWatch</h2>
+        <p data-i18n="tutorialDesc">Learn how to explore issues, submit a report, track progress, and route work as an administrator.</p>
       </div>
-      <span class="tutorial-duration">15-second demo</span>
+      <span class="tutorial-duration" data-i18n="tutorialDuration">15-second demo</span>
     </div>
     <video controls playsinline preload="metadata" poster="tutorial-poster.jpg" aria-label="WorldWatch application tutorial video">
       <source src="tutorial.mp4" type="video/mp4">
       Your browser does not support MP4 video. Please use the controls to continue to login.
     </video>
-    <a class="tutorial-skip" href="#loginCards">Skip demo and go to login</a>
+    <a class="tutorial-skip" href="#loginCards" data-i18n="skipDemo">Skip demo and go to login</a>
   </section>
 
   <!-- Live Stats Banner -->
   <div class="stats-banner">
-    <div class="stat-pill">🗺️ Issues Tracked: <span id="statTotal">15</span></div>
-    <div class="stat-pill">✅ Verified: <span id="statVerified">6</span></div>
-    <div class="stat-pill">🔍 Under Review: <span id="statReview">5</span></div>
-    <div class="stat-pill">✔️ Resolved: <span id="statResolved">3</span></div>
+    <div class="stat-pill">🗺️ <span data-i18n="activeIssuesTracked">Issues Tracked</span>: <span id="statTotal">15</span></div>
+    <div class="stat-pill">✅ <span data-i18n="verified">Verified</span>: <span id="statVerified">6</span></div>
+    <div class="stat-pill">⏳ <span data-i18n="underReview">Under Review</span>: <span id="statReview">5</span></div>
+    <div class="stat-pill">✔ <span data-i18n="resolved">Resolved</span>: <span id="statResolved">3</span></div>
   </div>
 
   <!-- Login Cards -->
@@ -460,7 +460,7 @@
     <form class="login-card" id="userLoginForm" novalidate onsubmit="return doLogin(event, 'user')">
       <div class="card-icon user"><i class="fa fa-user"></i></div>
       <div class="card-title" data-i18n="userLogin">User Login</div>
-      <div class="card-subtitle">Report and track world issues</div>
+      <div class="card-subtitle" data-i18n="userSubtitle">Report and track world issues</div>
 
       <div class="form-group">
         <label class="form-label" for="userEmail" data-i18n="email">Email Address</label>
@@ -485,7 +485,7 @@
       <div class="demo-box">
         <strong>Demo:</strong>
         <button type="button" onclick="fillUser()">user@world.com</button> / user123
-        <br><small>Click email to auto-fill</small>
+        <br><small data-i18n="clickToFill">Click email to auto-fill</small>
       </div>
     </form>
 
@@ -493,7 +493,7 @@
     <form class="login-card" id="adminLoginForm" novalidate onsubmit="return doLogin(event, 'admin')">
       <div class="card-icon admin"><i class="fa fa-shield-halved"></i></div>
       <div class="card-title" data-i18n="adminLogin">Admin Login</div>
-      <div class="card-subtitle">Verify, manage, and resolve issues</div>
+      <div class="card-subtitle" data-i18n="adminSubtitle">Verify, manage, and resolve issues</div>
 
       <div class="form-group">
         <label class="form-label" for="adminEmail" data-i18n="email">Email Address</label>
@@ -518,7 +518,7 @@
       <div class="demo-box">
         <strong>Demo:</strong>
         <button type="button" onclick="fillAdmin()">admin@world.com</button> / admin123
-        <br><small>Click email to auto-fill</small>
+        <br><small data-i18n="clickToFill">Click email to auto-fill</small>
       </div>
     </form>
   </div>
@@ -530,8 +530,8 @@
 </div>
 
 <dialog class="register-dialog" id="registerDialog" aria-labelledby="registerTitle">
-  <h2 id="registerTitle">Create an account</h2>
-  <p>Register as a WorldWatch user to report and track issues.</p>
+  <h2 id="registerTitle" data-i18n="createAccount">Create an account</h2>
+  <p data-i18n="registerPrompt">Register as a WorldWatch user to report and track issues.</p>
   <form id="registerForm" onsubmit="return registerUser(event)">
     <div class="form-group">
       <label class="form-label" for="registerName">Full name</label>
@@ -547,8 +547,8 @@
     </div>
     <div class="error-msg" id="registerError" role="alert" aria-live="polite"></div>
     <div class="register-actions">
-      <button type="button" onclick="closeRegistration()">Cancel</button>
-      <button type="submit">Create account</button>
+      <button type="button" onclick="closeRegistration()" data-i18n="cancel">Cancel</button>
+      <button type="submit" data-i18n="createAccount">Create account</button>
     </div>
   </form>
 </dialog>
@@ -764,6 +764,15 @@ function continueAsGuest(event) {
     userError.style.display = 'block';
   }
 }
+
+// Initialize language from storage
+i18n.loadSaved();
+i18n.applyAll();
+const savedLang = i18n.current;
+const langSel = document.getElementById('langSelector');
+if (langSel) langSel.value = savedLang;
+const tagEl = document.getElementById('taglineRotator');
+if (tagEl) tagEl.textContent = taglines[savedLang] || taglines.en;
 
 // Check if already logged in
 const session = AUTH.getSession();

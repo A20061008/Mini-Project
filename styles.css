@@ -1607,55 +1607,52 @@ tbody tr:last-child td {
   max-width: min(80vw, 520px);
   font-size: 10px;
 }
+/* MapLibre marker wrapper — lock the anchor point so the marker never drifts */
+.maplibregl-marker {
+  will-change: transform;
+  transform-origin: center center !important;
+}
 .issue-map-marker {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--issue-color);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.48), 0 0 0 1px rgba(20,35,55,0.55);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 5px;
+  margin: 0;
+  border: 2.5px solid #ffffff;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--issue-color, #1a73e8);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(20, 35, 55, 0.35);
   cursor: pointer;
-  font: 700 15px var(--font);
-  overflow: visible;
-  transition: none;
+  font-family: var(--font, sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+  box-sizing: border-box;
+  transform: none !important;
+  transform-origin: center center;
   appearance: none;
   -webkit-appearance: none;
+  vertical-align: top;
+  flex-shrink: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.issue-map-marker:focus-visible { outline: 3px solid #1a73e8; outline-offset: 3px; }
-.issue-map-marker-status {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  line-height: 1;
-  transform: none;
-  transition: none;
-  pointer-events: none;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.18);
-}
-.issue-map-marker:hover .issue-map-marker-status,
-.issue-map-marker:active .issue-map-marker-status,
-.issue-map-marker:focus .issue-map-marker-status {
-  transform: none;
+.issue-map-marker:hover,
+.issue-map-marker:focus-visible {
+  transform: scale(1.14) !important;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.55), 0 0 0 2px #ffffff;
+  outline: none;
+  z-index: 10;
 }
 .issue-map-marker-count {
-  position: absolute;
-  top: -9px;
-  right: -17px;
-  min-width: 28px;
-  padding: 2px 4px;
-  border: 1px solid #fff;
-  border-radius: 10px;
-  color: #203040;
-  background: #fff;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.25);
-  font-size: 10px;
-  line-height: 1.2;
+  pointer-events: none;
+  display: inline-block;
+  line-height: 1;
   white-space: nowrap;
 }
 .maplibregl-ctrl-bottom-left .maplibregl-ctrl-scale {

@@ -63,6 +63,8 @@ ISSUE_TYPES = {
     "infrastructure",
     "pollution",
     "medical",
+    "garbage",
+    "drainage",
     "other",
 }
 INTERNAL_TICKET_MARKERS = (
@@ -122,7 +124,7 @@ Always answer the user in natural, conversational language. Never expose interna
 
 REPORT_DRAFT_PROMPT = """Help the user prepare a draft for the WorldWatch issue-report form. Use only facts the user supplied in this conversation. Never invent an event, location, category, or severity. Ask a concise clarifying question in the answer when the issue type, what happened, or its city/area is unclear. Do not submit or claim to submit anything.
 
-Return one JSON object with exactly these keys: answer (a short, natural-language message), draft (null until all required facts are clear; otherwise an object), and missing (an array of missing facts). A complete draft must have title, description, type, severity, and location. The title must be at most 120 characters, description at most 1000 characters, and location at most 200 characters. type must be exactly one of naturalDisaster, flood, fire, roadAccident, crime, infrastructure, pollution, medical, or other. severity must be an integer from 1 to 5; if the user did not specify it, use 3 and tell the user it is the default and can be changed. Do not include any other data or internal ticket metadata."""
+Return one JSON object with exactly these keys: answer (a short, natural-language message), draft (null until all required facts are clear; otherwise an object), and missing (an array of missing facts). A complete draft must have title, description, type, severity, and location. The title must be at most 120 characters, description at most 1000 characters, and location at most 200 characters. type must be exactly one of naturalDisaster, flood, fire, roadAccident, crime, infrastructure, pollution, medical, garbage, drainage, or other. severity must be an integer from 1 to 5; if the user did not specify it, use 3 and tell the user it is the default and can be changed. Do not include any other data or internal ticket metadata."""
 
 ISSUE_CONTEXT_FIELDS = {
     "id": 32,
@@ -518,7 +520,7 @@ class WorldWatchHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            messages, issue_context, task = self.read_messages()
+            messages, issue_context, task, lang = self.read_messages()
         except ChatRequestError as error:
             self.send_json(error.status, {"error": str(error)})
             return
@@ -530,7 +532,7 @@ class WorldWatchHandler(BaseHTTPRequestHandler):
             )
             return
 
-        self.ask_provider(messages, issue_context, task)
+        self.ask_provider(messages, issue_context, task, lang)
 
     def read_messages(self):
         try:
@@ -568,10 +570,29 @@ class WorldWatchHandler(BaseHTTPRequestHandler):
             ):
                 raise ChatRequestError(400, "A message is invalid or too long (maximum 4,000 characters).")
             normalized.append({"role": role, "content": content.strip()})
-        return sanitize_chat_history(normalized), issue_context, task
+        lang = payload.get("lang", "en")
+        if not isinstance(lang, str):
+            lang = "en"
+        return sanitize_chat_history(normalized), issue_context, task, lang
 
-    def ask_provider(self, messages, issue_context, task):
+    def ask_provider(self, messages, issue_context, task, lang="en"):
         provider_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        if lang and lang != "en":
+            lang_names = {
+                "kn": "Kannada (ಕನ್ನಡ)",
+                "hi": "Hindi (हिन्दी)",
+                "te": "Telugu (తెలుగు)",
+                "ta": "Tamil (தமிழ்)",
+                "mr": "Marathi (मराठी)",
+                "ml": "Malayalam (മലയാളം)",
+                "od": "Odia (ଓଡ଼ିଆ)",
+                "bn": "Bengali (বাংলা)",
+            }
+            target_lang = lang_names.get(lang, lang)
+            provider_messages.append({
+                "role": "system",
+                "content": f"LANGUAGE REQUIREMENT: The user's interface language is {target_lang}. Please reply completely and fluently in {target_lang}. Translate any assistance, civic guidance, or response text naturally into {target_lang}."
+            })
         if task == "draft_report":
             provider_messages.append({"role": "system", "content": REPORT_DRAFT_PROMPT})
         else:

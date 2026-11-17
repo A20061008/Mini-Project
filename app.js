@@ -326,6 +326,40 @@ const SAMPLE_ISSUES = [
     image: null,
     resolutionImage: null,
     resolutionMsg: null
+  },
+  {
+    id: "ISS016",
+    type: "garbage",
+    title: "Garbage Not Collected for 10 Days in Whitefield",
+    description: "Residents of Whitefield Layout, Bengaluru report that municipal garbage has not been collected for over 10 days. Overflowing bins are causing foul smell and health hazards in the neighbourhood.",
+    location: "Whitefield, Bengaluru, Karnataka, India",
+    lat: 12.9698,
+    lng: 77.7500,
+    severity: 3,
+    status: "reviewing",
+    reportCount: 312,
+    reporter: "user@world.com",
+    date: "2026-11-13",
+    image: null,
+    resolutionImage: null,
+    resolutionMsg: null
+  },
+  {
+    id: "ISS017",
+    type: "drainage",
+    title: "Blocked Drainage Flooding Streets in Pune",
+    description: "Severe drainage blockage in Kothrud area, Pune is causing stagnant water to flood streets and enter residential premises. Mosquito breeding is a growing concern for locals.",
+    location: "Kothrud, Pune, Maharashtra, India",
+    lat: 18.5074,
+    lng: 73.8077,
+    severity: 4,
+    status: "verified",
+    reportCount: 487,
+    reporter: "citizen1@gmail.com",
+    date: "2026-11-14",
+    image: null,
+    resolutionImage: null,
+    resolutionMsg: null
   }
 ];
 
@@ -393,6 +427,22 @@ const ISSUE_PREVIEWS = {
     source: "https://commons.wikimedia.org/wiki/File:Mugda_Medical_College_Hospital_Building.jpg",
     license: "CC0",
     licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  garbage: {
+    src: "assets/issue-previews/other.jpg",
+    creator: "Pinakpani",
+    title: "Garbage collection issue",
+    source: "https://commons.wikimedia.org/wiki/File:Road_and_streets_in_Visakhapatnam_city,_Andhra_Pradesh_06.jpg",
+    license: "CC BY 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0/"
+  },
+  drainage: {
+    src: "assets/issue-previews/other.jpg",
+    creator: "Pinakpani",
+    title: "Drainage problem",
+    source: "https://commons.wikimedia.org/wiki/File:Road_and_streets_in_Visakhapatnam_city,_Andhra_Pradesh_06.jpg",
+    license: "CC BY 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0/"
   },
   other: {
     src: "assets/issue-previews/other.jpg",
@@ -501,6 +551,8 @@ const DepartmentRouting = {
       return state === "Delhi" ? "Delhi Pollution Control Committee" : `${localName}Pollution Control Board`;
     }
     if (type === "medical") return `${localName}Health Department / Emergency Medical Services`;
+    if (type === "garbage") return `${localName}Municipal Corporation / Solid Waste Management`;
+    if (type === "drainage") return `${localName}Public Works Department / Drainage Division`;
     if (type === "flood") return `${localName}State Disaster Management Authority`;
     if (type === "naturalDisaster") {
       return /\b(cyclone|storm|weather|rain|wind|forecast|warning)\b/.test(text)
@@ -510,7 +562,7 @@ const DepartmentRouting = {
     return `${localName}District Administration / Municipal Authority`;
   },
   options(location, title = "", description = "") {
-    const types = ["crime", "fire", "roadAccident", "infrastructure", "pollution", "medical", "flood", "naturalDisaster", "other"];
+    const types = ["crime", "fire", "roadAccident", "infrastructure", "pollution", "medical", "garbage", "drainage", "flood", "naturalDisaster", "other"];
     return [...new Set(types.map(type => this.suggest(type, location, title, description)))];
   }
 };
@@ -761,7 +813,7 @@ const MapUtils = {
   },
   getTypeIcon(type) {
     return { flood: "🌊", naturalDisaster: "🌪️", fire: "🔥", roadAccident: "🚗", crime: "⚔️",
-             infrastructure: "🏗️", pollution: "☁️", medical: "🏥", other: "❓" }[type] || "📍";
+             infrastructure: "🏗️", pollution: "☁️", medical: "🏥", garbage: "🗑️", drainage: "🚰", other: "❓" }[type] || "📍";
   },
   // Circle radius (metres) grows with the number of reports, so busy areas glow larger
   getRadius(reportCount) {
@@ -813,6 +865,16 @@ const ISSUE_SAFETY_GUIDANCE = {
     response: "For difficulty breathing, chest pain, sudden weakness, severe bleeding, unconsciousness, or another life-threatening symptom, contact emergency medical services immediately. Do not rely on this app for diagnosis.",
     prevention: "Follow qualified medical advice, keep necessary medicines and emergency contacts available, use safe food and water practices, and seek care early when symptoms worsen.",
     monitor: "Use public-health guidance and professional assessment. This app has no live hospital directory, ambulance dispatch, or patient monitoring; emergency services can direct you to nearby care."
+  },
+  garbage: {
+    response: "Report the missed collection to your local municipal corporation or waste management helpline immediately. Bag and seal waste tightly to minimise odour and pest attraction until collection resumes.",
+    prevention: "Use designated bin areas, segregate wet and dry waste, and report irregular collection schedules to the municipal authority promptly to prevent accumulation.",
+    monitor: "Track collection schedules through your municipality's app or helpline. Persistent non-collection may indicate a larger sanitation strike or route change requiring escalation."
+  },
+  drainage: {
+    response: "Avoid contact with stagnant or drain water as it may carry pathogens. Report blocked drains to the municipal corporation or public works department and do not attempt to clear large blockages yourself.",
+    prevention: "Do not dispose of solid waste, plastic, or oil into storm drains. Ensure regular cleaning of household drainage outlets and report deteriorating drain covers promptly.",
+    monitor: "Watch for recurring waterlogging after rainfall, especially during monsoon season. Stagnant water is a breeding ground for mosquitoes; report to health and municipal authorities simultaneously."
   },
   other: {
     response: "Move away from immediate danger, contact the appropriate local authority, and document the issue only when it is safe.",
@@ -1801,7 +1863,7 @@ const Analytics = {
   charts: {},
   built: false,
   current: "flood",
-  TYPES: ["flood", "naturalDisaster", "fire", "roadAccident", "crime", "infrastructure", "pollution", "medical", "other"],
+  TYPES: ["flood", "naturalDisaster", "fire", "roadAccident", "crime", "infrastructure", "pollution", "medical", "garbage", "drainage", "other"],
   PALETTE: ["#1a73e8", "#4caf50", "#ff5722", "#9c27b0", "#ff9800", "#00bcd4", "#f44336", "#2196f3", "#607d8b"],
 
   _chart(key, canvasId, cfg) {
